@@ -1,0 +1,16 @@
+# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+.PHONY: import-organization make-migrations migrate clean
+
+import-organization:
+	poetry run aws-organized import-organization
+
+make-migrations:
+	poetry run aws-organized make-migrations
+
+migrate:
+	poetry run aws-organized migrate
+
+clean:
+	rm -rf environment

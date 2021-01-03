@@ -1,0 +1,28 @@
+# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[tool.poetry]
+name = "aws_organized"
+version = "0.0.1"
+description = ""
+authors = ["Eamonn Faherty <eamonnf@amazon.co.uk>"]
+packages = [
+    { include = "aws_organized", from = "." },
+]
+include = ["aws_organized"]
+
+[tool.poetry.scripts]
+aws-organized = "aws_organized.cli:cli"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+click = "^7.1.2"
+boto3 = "^1.16.4"
+better-boto = "0.34.1"
+PyYAML = "^5.3.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
