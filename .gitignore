@@ -1,4 +1,5 @@
 .idea
 environment
+__pycache__
 state.yaml
 .venv
