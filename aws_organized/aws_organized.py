@@ -93,8 +93,8 @@ def update_state(role_arn) -> None:
         by_name = dict()
         by_id = dict()
         organizational_units = dict(tree=tree, by_name=by_name, by_id=by_id)
+        click.echo("Getting organizational units")
         result["organizational_units"] = organizational_units
-        root_id = None
         for root in list_roots_response.get("Roots", []):
             root_id = str(root.get("Id"))
             details = dict(
@@ -121,9 +121,13 @@ def update_state(role_arn) -> None:
             f.write(yaml.safe_dump(result))
         click.echo("Saved organizational units")
 
+        click.echo("Getting accounts")
         accounts = organizations.list_accounts_single_page().get("Accounts", [])
+        click.echo(f"Adding accounts: {len(accounts)}")
+        counter = 1
         for account in accounts:
             account_id = account.get("Id")
+            click.echo(f"Adding {account_id} ({counter} of {len(accounts)})")
             all_accounts[account_id] = dict(
                 details=account,
                 parents=organizations.list_parents_single_page(ChildId=account_id).get(
@@ -136,6 +140,7 @@ def update_state(role_arn) -> None:
                     ).get("Policies", []),
                 ),
             )
+            counter += 1
         with open(STATE_FILE, "w") as f:
             f.write(yaml.safe_dump(result))
         click.echo("Saved accounts")

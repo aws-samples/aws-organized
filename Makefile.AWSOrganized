@@ -3,14 +3,16 @@
 
 .PHONY: import-organization make-migrations migrate clean
 
+ROLE_ARN="arn:aws:iam::170232108581:role/Admin"
+
 import-organization:
-	poetry run aws-organized import-organization
+	poetry run aws-organized import-organization $(ROLE_ARN)
 
 make-migrations:
-	poetry run aws-organized make-migrations
+	poetry run aws-organized make-migrations $(ROLE_ARN)
 
 migrate:
-	poetry run aws-organized migrate
+	poetry run aws-organized migrate $(ROLE_ARN)
 
 clean:
 	rm -rf environment
