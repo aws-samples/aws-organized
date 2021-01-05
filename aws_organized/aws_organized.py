@@ -11,8 +11,15 @@ import yaml
 import click
 import logging
 import sys
+import troposphere
+from troposphere import iam
 from aws_organized import migrations
 from datetime import datetime
+from awacs import aws
+from awacs.iam import ARN as IAM_ARN
+import awacs.sts as sts
+import awacs.organizations as organizations
+
 
 logging.disable(sys.maxsize)
 
@@ -212,6 +219,128 @@ def import_organization(role_arn) -> None:
                 "w",
             ) as f:
                 f.write(yaml.safe_dump(account_details))
+
+
+def generate_make_migrations_role(
+    role_name: str,
+    path: str,
+    assuming_account_id: str,
+    assuming_resource: str,
+    output_format: str,
+) -> str:
+    return generate_role(
+        "make-migrations",
+        [
+            organizations.DescribeOrganizationalUnit,
+            organizations.ListParents,
+        ],
+        role_name,
+        path,
+        assuming_account_id,
+        assuming_resource,
+        output_format,
+    )
+
+
+def generate_migrate_role(
+    role_name: str,
+    path: str,
+    assuming_account_id: str,
+    assuming_resource: str,
+    output_format: str,
+) -> str:
+    return generate_role(
+        "migrate",
+        [
+            organizations.CreateOrganizationalUnit,
+            organizations.UpdateOrganizationalUnit,
+            organizations.MoveAccount,
+        ],
+        role_name,
+        path,
+        assuming_account_id,
+        assuming_resource,
+        output_format,
+    )
+
+
+def generate_import_organization_role(
+    role_name: str,
+    path: str,
+    assuming_account_id: str,
+    assuming_resource: str,
+    output_format: str,
+) -> str:
+    return generate_role(
+        "import-organizations",
+        [
+            organizations.ListRoots,
+            organizations.ListPoliciesForTarget,
+            organizations.ListAccounts,
+        ],
+        role_name,
+        path,
+        assuming_account_id,
+        assuming_resource,
+        output_format,
+    )
+
+
+def generate_role(
+    command: str,
+    actions: list,
+    role_name: str,
+    path: str,
+    assuming_account_id: str,
+    assuming_resource: str,
+    output_format: str,
+) -> str:
+    t = troposphere.Template()
+    t.description = f"Role used to run the {command} command"
+
+    t.add_resource(
+        iam.Role(
+            title="role",
+            RoleName=role_name,
+            Path=path,
+            Policies=[
+                iam.Policy(
+                    PolicyName=f"{command} permissions",
+                    PolicyDocument=aws.PolicyDocument(
+                        Version="2012-10-17",
+                        Id=f"{command} permissions",
+                        Statement=[
+                            aws.Statement(
+                                Sid="1",
+                                Effect=aws.Allow,
+                                Action=actions,
+                                Resource=["*"],
+                            ),
+                        ],
+                    ),
+                )
+            ],
+            AssumeRolePolicyDocument=aws.Policy(
+                Version="2012-10-17",
+                Id="AllowAssume",
+                Statement=[
+                    aws.Statement(
+                        Sid="1",
+                        Effect=aws.Allow,
+                        Principal=aws.Principal(
+                            "AWS", [IAM_ARN(assuming_resource, "", assuming_account_id)]
+                        ),
+                        Action=[sts.AssumeRole],
+                    ),
+                ],
+            ),
+        )
+    )
+
+    if output_format == "json":
+        return t.to_json()
+    else:
+        return t.to_yaml()
 
 
 def write_migration(migration_type: str, migration_params: dict) -> None:
