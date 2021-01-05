@@ -221,14 +221,14 @@ def import_organization(role_arn) -> None:
                 f.write(yaml.safe_dump(account_details))
 
 
-def generate_make_migrations_role(
+def generate_make_migrations_role_template(
     role_name: str,
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
     output_format: str,
 ) -> str:
-    return generate_role(
+    return generate_role_template(
         "make-migrations",
         [
             organizations.DescribeOrganizationalUnit,
@@ -242,14 +242,14 @@ def generate_make_migrations_role(
     )
 
 
-def generate_migrate_role(
+def generate_migrate_role_template(
     role_name: str,
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
     output_format: str,
 ) -> str:
-    return generate_role(
+    return generate_role_template(
         "migrate",
         [
             organizations.CreateOrganizationalUnit,
@@ -264,14 +264,14 @@ def generate_migrate_role(
     )
 
 
-def generate_import_organization_role(
+def generate_import_organization_role_template(
     role_name: str,
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
     output_format: str,
 ) -> str:
-    return generate_role(
+    return generate_role_template(
         "import-organizations",
         [
             organizations.ListRoots,
@@ -286,7 +286,7 @@ def generate_import_organization_role(
     )
 
 
-def generate_role(
+def generate_role_template(
     command: str,
     actions: list,
     role_name: str,

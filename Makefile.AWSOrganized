@@ -8,20 +8,20 @@ ROLE_ARN="arn:aws:iam::170232108581:role/Admin"
 import-organization:
 	poetry run aws-organized import-organization $(ROLE_ARN)
 
-generate-import-organization-role:
-	poetry run aws-organized generate-import-organization-role $$(aws sts get-caller-identity --query Account --output text)
+generate-import-organization-role-template:
+	poetry run aws-organized generate-import-organization-role-template $$(aws sts get-caller-identity --query Account --output text)
 
 make-migrations:
 	poetry run aws-organized make-migrations $(ROLE_ARN)
 
-generate-make-migrations-role:
-	poetry run aws-organized generate-make-migrations-role $$(aws sts get-caller-identity --query Account --output text)
+generate-make-migrations-role-template:
+	poetry run aws-organized generate-make-migrations-role-template $$(aws sts get-caller-identity --query Account --output text)
 
 migrate:
 	poetry run aws-organized migrate $(ROLE_ARN)
 
-generate-migrate-role:
-	poetry run aws-organized generate-migrate-role $$(aws sts get-caller-identity --query Account --output text)
+generate-migrate-role-template:
+	poetry run aws-organized generate-migrate-role-template $$(aws sts get-caller-identity --query Account --output text)
 
 clean:
 	rm -rf environment

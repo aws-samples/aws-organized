@@ -23,7 +23,7 @@ def import_organization(role_arn):
 @click.option("--assuming-resource", default="root")
 @click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
-def generate_import_organization_role(
+def generate_import_organization_role_template(
     role_name: str,
     path: str,
     assuming_resource: str,
@@ -31,7 +31,7 @@ def generate_import_organization_role(
     assuming_account_id: str,
 ):
     click.echo(
-        aws_organized.generate_import_organization_role(
+        aws_organized.generate_import_organization_role_template(
             role_name,
             path,
             assuming_account_id,
@@ -53,7 +53,7 @@ def make_migrations(role_arn):
 @click.option("--assuming-resource", default="root")
 @click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
-def generate_make_migrations_role(
+def generate_make_migrations_role_template(
     role_name: str,
     path: str,
     assuming_resource: str,
@@ -61,7 +61,7 @@ def generate_make_migrations_role(
     assuming_account_id: str,
 ):
     click.echo(
-        aws_organized.generate_make_migrations_role(
+        aws_organized.generate_make_migrations_role_template(
             role_name,
             path,
             assuming_account_id,
@@ -83,7 +83,7 @@ def migrate(role_arn):
 @click.option("--assuming-resource", default="root")
 @click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
-def generate_migrate_role(
+def generate_migrate_role_template(
     role_name: str,
     path: str,
     assuming_resource: str,
@@ -91,7 +91,7 @@ def generate_migrate_role(
     assuming_account_id: str,
 ):
     click.echo(
-        aws_organized.generate_migrate_role(
+        aws_organized.generate_migrate_role_template(
             role_name,
             path,
             assuming_account_id,
