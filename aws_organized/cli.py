@@ -103,3 +103,28 @@ def generate_migrate_role_template(
 
 if __name__ == "__main__":
     cli()
+
+
+@cli.command()
+@click.option("--output-format", default="yaml")
+@click.option("--codepipeline-role-name", default="CodePipelineRole2")
+@click.option("--codepipeline-role-path", default="/AWSOrganized/")
+@click.option("--codebuild-role-name", default="CodeBuildRole2")
+@click.option("--codebuild-role-path", default="/AWSOrganized/")
+@click.option("--git-repo", default="")
+def generate_codepipeline_template(
+    codepipeline_role_name,
+    codepipeline_role_path,
+    codebuild_role_name,
+    codebuild_role_path,
+    output_format: str,
+):
+    click.echo(
+        aws_organized.generate_codepipeline_template(
+            codepipeline_role_name,
+            codepipeline_role_path,
+            codebuild_role_name,
+            codebuild_role_path,
+            output_format.lower(),
+        )
+    )

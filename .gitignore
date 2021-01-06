@@ -4,3 +4,4 @@ __pycache__
 state.yaml
 .venv
 .DS_Store
+ignored

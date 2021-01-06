@@ -13,12 +13,19 @@ import logging
 import sys
 import troposphere
 from troposphere import iam
+from troposphere import codepipeline
+from troposphere import codecommit
+from troposphere import codebuild
+from troposphere import s3
 from aws_organized import migrations
 from datetime import datetime
 from awacs import aws
 from awacs.iam import ARN as IAM_ARN
-import awacs.sts as sts
-import awacs.organizations as organizations
+import awacs.sts as awacs_sts
+import awacs.organizations as awacs_organizations
+import awacs.logs as awacs_logs
+import awacs.s3 as awacs_s3
+import awacs.codebuild as awacs_codebuild
 
 
 logging.disable(sys.maxsize)
@@ -231,8 +238,8 @@ def generate_make_migrations_role_template(
     return generate_role_template(
         "make-migrations",
         [
-            organizations.DescribeOrganizationalUnit,
-            organizations.ListParents,
+            awacs_organizations.DescribeOrganizationalUnit,
+            awacs_organizations.ListParents,
         ],
         role_name,
         path,
@@ -252,9 +259,9 @@ def generate_migrate_role_template(
     return generate_role_template(
         "migrate",
         [
-            organizations.CreateOrganizationalUnit,
-            organizations.UpdateOrganizationalUnit,
-            organizations.MoveAccount,
+            awacs_organizations.CreateOrganizationalUnit,
+            awacs_organizations.UpdateOrganizationalUnit,
+            awacs_organizations.MoveAccount,
         ],
         role_name,
         path,
@@ -274,9 +281,9 @@ def generate_import_organization_role_template(
     return generate_role_template(
         "import-organizations",
         [
-            organizations.ListRoots,
-            organizations.ListPoliciesForTarget,
-            organizations.ListAccounts,
+            awacs_organizations.ListRoots,
+            awacs_organizations.ListPoliciesForTarget,
+            awacs_organizations.ListAccounts,
         ],
         role_name,
         path,
@@ -330,7 +337,7 @@ def generate_role_template(
                         Principal=aws.Principal(
                             "AWS", [IAM_ARN(assuming_resource, "", assuming_account_id)]
                         ),
-                        Action=[sts.AssumeRole],
+                        Action=[awacs_sts.AssumeRole],
                     ),
                 ],
             ),
@@ -576,3 +583,269 @@ def migrate(role_arn: str) -> None:
                         {"Key": "AWS-Organized:Actor", "Value": "Framework"},
                     ],
                 )
+
+
+def generate_codepipeline_template(
+    codepipeline_role_name: str,
+    codepipeline_role_path: str,
+    codebuild_role_name: str,
+    codebuild_role_path: str,
+    output_format: str,
+) -> str:
+    t = troposphere.Template()
+    t.set_description(
+        "CICD template that runs aws organized migrate for the given branch of the given repo"
+    )
+
+    project_name = "AWSOrganized-Migrate"
+
+    codepipeline_role = t.add_resource(
+        iam.Role(
+            "CodePipelineRole",
+            RoleName=codepipeline_role_name,
+            Path=codepipeline_role_path,
+            Policies=[
+                iam.Policy(
+                    PolicyName=f"executionpermissions",
+                    PolicyDocument=aws.PolicyDocument(
+                        Version="2012-10-17",
+                        Id=f"executionpermissions",
+                        Statement=[
+                            aws.Statement(
+                                Sid="1",
+                                Effect=aws.Allow,
+                                Action=[awacs_s3.GetObject],
+                                Resource=["*"],
+                            ),
+                        ],
+                    ),
+                )
+            ],
+            AssumeRolePolicyDocument=aws.PolicyDocument(
+                Version="2012-10-17",
+                Statement=[
+                    aws.Statement(
+                        Effect=aws.Allow,
+                        Action=[awacs_sts.AssumeRole],
+                        Principal=aws.Principal(
+                            "Service", ["codepipeline.amazonaws.com"]
+                        ),
+                    ),
+                ],
+            ),
+        )
+    )
+
+    codebuild_role = t.add_resource(
+        iam.Role(
+            "CodeBuildRole",
+            RoleName=codebuild_role_name,
+            Path=codebuild_role_path,
+            Policies=[
+                iam.Policy(
+                    PolicyName=f"executionpermissions",
+                    PolicyDocument=aws.PolicyDocument(
+                        Version="2012-10-17",
+                        Id=f"executionpermissions",
+                        Statement=[
+                            aws.Statement(
+                                Sid="1",
+                                Effect=aws.Allow,
+                                Action=[
+                                    awacs_logs.CreateLogGroup,
+                                    awacs_logs.CreateLogStream,
+                                    awacs_logs.PutLogEvents,
+                                ],
+                                Resource=[
+                                    # "arn:aws:logs:eu-west-1:669925765091:log-group:/aws/codebuild/examplecodebuild",
+                                    # "arn:aws:logs:eu-west-1:669925765091:log-group:/aws/codebuild/examplecodebuild:*",
+                                    {
+                                        "Fn::Sub": [
+                                            f"arn:${{AWS::Partition}}:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/codebuild/{project_name}",
+                                            {},
+                                        ]
+                                    },
+                                    {
+                                        "Fn::Sub": [
+                                            f"arn:${{AWS::Partition}}:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/codebuild/{project_name}:*",
+                                            {},
+                                        ]
+                                    },
+                                ],
+                            ),
+                            aws.Statement(
+                                Sid="2",
+                                Effect=aws.Allow,
+                                Action=[
+                                    awacs_s3.PutObject,
+                                    awacs_s3.GetObject,
+                                    awacs_s3.GetObjectVersion,
+                                    awacs_s3.GetBucketAcl,
+                                    awacs_s3.GetBucketLocation,
+                                ],
+                                Resource=[
+                                    # "arn:aws:s3:::codepipeline-eu-west-1-*",
+                                    {
+                                        "Fn::Sub": [
+                                            f"arn:${{AWS::Partition}}:s3:::codepipeline-${{AWS::Region}}-*",
+                                            {},
+                                        ]
+                                    },
+                                ],
+                            ),
+                            aws.Statement(
+                                Sid="3",
+                                Effect=aws.Allow,
+                                Action=[
+                                    awacs_codebuild.CreateReportGroup,
+                                    awacs_codebuild.CreateReport,
+                                    awacs_codebuild.UpdateReport,
+                                    awacs_codebuild.BatchPutTestCases,
+                                    awacs_codebuild.BatchPutCodeCoverages,
+                                ],
+                                Resource=[
+                                    # "arn:aws:codebuild:eu-west-1:669925765091:report-group/examplecodebuild-*",
+                                    {
+                                        "Fn::Sub": [
+                                            f"arn:${{AWS::Partition}}:codebuild:${{AWS::Region}}:${{AWS::AccountId}}:report-group/{project_name}-*",
+                                            {},
+                                        ]
+                                    },
+                                ],
+                            ),
+                        ],
+                    ),
+                )
+            ],
+            AssumeRolePolicyDocument=aws.PolicyDocument(
+                Version="2012-10-17",
+                Statement=[
+                    aws.Statement(
+                        Effect=aws.Allow,
+                        Action=[awacs_sts.AssumeRole],
+                        Principal=aws.Principal("Service", ["codebuild.amazonaws.com"]),
+                    ),
+                ],
+            ),
+        )
+    )
+
+    artifact_store = t.add_resource(
+        s3.Bucket(
+            "ArtifactStore",
+            BucketEncryption=s3.BucketEncryption(
+                ServerSideEncryptionConfiguration=[
+                    s3.ServerSideEncryptionRule(
+                        ServerSideEncryptionByDefault=s3.ServerSideEncryptionByDefault(
+                            SSEAlgorithm="AES256"
+                        )
+                    )
+                ]
+            ),
+        )
+    )
+
+    project = t.add_resource(
+        codebuild.Project(
+            "DemoProject",
+            Artifacts=codebuild.Artifacts(Type="CODEPIPELINE"),
+            Environment=codebuild.Environment(
+                ComputeType="BUILD_GENERAL1_SMALL",
+                Image="aws/codebuild/standard:4.0",
+                Type="LINUX_CONTAINER",
+            ),
+            Name=project_name,
+            ServiceRole=troposphere.GetAtt(codebuild_role, "Arn"),
+            Source=codebuild.Source(
+                Type="CODEPIPELINE",
+                BuildSpec=yaml.safe_dump(
+                    dict(
+                        version="0.2",
+                        phases=dict(
+                            install={
+                                "runtime-versions": dict(python="3.8"),
+                                "commands": [
+                                    "pip install aws-organized",
+                                ],
+                            },
+                            build={
+                                "commands": [
+                                    "aws-organized migrate",
+                                ],
+                            },
+                        ),
+                        artifacts=dict(
+                            files=[
+                                "environment",
+                            ],
+                        ),
+                    )
+                ),
+            ),
+        )
+    )
+
+    repository_name = "AWS-Organized-environment"
+    repo = t.add_resource(
+        codecommit.Repository("Repository", RepositoryName=repository_name)
+    )
+
+    source_actions = codepipeline.Actions(
+        Name="SourceAction",
+        ActionTypeId=codepipeline.ActionTypeId(
+            Category="Source",
+            Owner="AWS",
+            Version="1",
+            Provider="CodeCommit",
+        ),
+        OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
+        Configuration={
+            "RepositoryName": repository_name,
+            "BranchName": "master",
+            "PollForSourceChanges": "true",
+        },
+        RunOrder="1",
+    )
+
+    pipeline = t.add_resource(
+        codepipeline.Pipeline(
+            "Pipeline",
+            RoleArn=troposphere.GetAtt(codepipeline_role, "Arn"),
+            Stages=[
+                codepipeline.Stages(
+                    Name="Source",
+                    Actions=[source_actions],
+                ),
+                codepipeline.Stages(
+                    Name="Migrate",
+                    Actions=[
+                        codepipeline.Actions(
+                            Name="Migrate",
+                            InputArtifacts=[
+                                codepipeline.InputArtifacts(Name="SourceOutput")
+                            ],
+                            ActionTypeId=codepipeline.ActionTypeId(
+                                Category="Build",
+                                Owner="AWS",
+                                Version="1",
+                                Provider="CodeBuild",
+                            ),
+                            Configuration={
+                                "ProjectName": troposphere.Ref(project),
+                                "PrimarySource": "SourceAction",
+                            },
+                            RunOrder="1",
+                        )
+                    ],
+                ),
+            ],
+            ArtifactStore=codepipeline.ArtifactStore(
+                Type="S3", Location=troposphere.Ref(artifact_store)
+            ),
+        )
+    )
+
+    if output_format == "json":
+        return t.to_json()
+    else:
+        return t.to_yaml()

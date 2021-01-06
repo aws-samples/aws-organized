@@ -26,3 +26,6 @@ generate-migrate-role-template:
 clean:
 	rm -rf environment
 
+generate-codepipeline-template:
+	poetry run aws-organized generate-codepipeline-template
+
