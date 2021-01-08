@@ -3,19 +3,29 @@
 
 .PHONY: import-organization make-migrations migrate clean
 
-ROLE_ARN="arn:aws:iam::170232108581:role/Admin"
+ORG_MANAGEMENT_ACCOUNT_ID=170232108581
+IMPORT_ROLE_ARN="arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/ImportOrganizationRole"
+CICD_ACCOUNT_ID="105463962595"
+MIGRATE_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MigrateRole"
+MAKE_MIGRATIONS_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MakeMigrationsRole"
 
 import-organization:
-	poetry run aws-organized import-organization $(ROLE_ARN)
+	poetry run aws-organized import-organization $(IMPORT_ROLE_ARN)
 
 generate-import-organization-role-template:
 	poetry run aws-organized generate-import-organization-role-template $$(aws sts get-caller-identity --query Account --output text)
 
+provision-import-organization-role-stack:
+	poetry run aws-organized provision-import-organization-role-stack $(CICD_ACCOUNT_ID)
+
 make-migrations:
-	poetry run aws-organized make-migrations $(ROLE_ARN)
+	poetry run aws-organized make-migrations $(MAKE_MIGRATIONS_ROLE_ARN)
 
 generate-make-migrations-role-template:
 	poetry run aws-organized generate-make-migrations-role-template $$(aws sts get-caller-identity --query Account --output text)
+
+provision-make-migrations-role-stack:
+	poetry run aws-organized provision-make-migrations-role-stack $(CICD_ACCOUNT_ID)
 
 migrate:
 	poetry run aws-organized migrate $(ROLE_ARN)
@@ -23,9 +33,14 @@ migrate:
 generate-migrate-role-template:
 	poetry run aws-organized generate-migrate-role-template $$(aws sts get-caller-identity --query Account --output text)
 
-clean:
-	rm -rf environment
+provision-migrate-role-stack:
+	poetry run aws-organized provision-migrate-role-stack $(CICD_ACCOUNT_ID)
 
 generate-codepipeline-template:
-	poetry run aws-organized generate-codepipeline-template
+	poetry run aws-organized generate-codepipeline-template $(MIGRATE_ROLE_ARN)
 
+provision-codepipeline-stack:
+	poetry run aws-organized provision-codepipeline-stack $(MIGRATE_ROLE_ARN)
+
+clean:
+	rm -rf environment
