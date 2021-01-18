@@ -3,11 +3,21 @@
 
 .PHONY: import-organization make-migrations migrate clean
 
-ORG_MANAGEMENT_ACCOUNT_ID=170232108581
-IMPORT_ROLE_ARN="arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/ImportOrganizationRole"
+ORG_MANAGEMENT_ACCOUNT_ID=921386445777
+IMPORT_ROLE_ARN="arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/admin"
+SCP_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/admin"
 CICD_ACCOUNT_ID="105463962595"
 MIGRATE_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MigrateRole"
 MAKE_MIGRATIONS_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MakeMigrationsRole"
+
+import-organization-policies:
+	poetry run aws-organized import-organization-policies $(SCP_ROLE_ARN)
+
+make-migrations-policies:
+	poetry run aws-organized make-migrations-policies $(SCP_ROLE_ARN)
+
+apply_migrations_policies:
+	poetry run aws-organized apply-migrations-policies $(SCP_ROLE_ARN)
 
 import-organization:
 	poetry run aws-organized import-organization $(IMPORT_ROLE_ARN)
