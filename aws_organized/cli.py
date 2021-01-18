@@ -7,10 +7,12 @@ from aws_organized import helpers
 from aws_organized import aws_organized
 from aws_organized_policies import aws_organized_policies
 
+
 @click.group()
 def cli():
     """cli"""
     pass
+
 
 @cli.command()
 @click.argument("role_arn")
@@ -20,14 +22,15 @@ def import_organization_policies(role_arn) -> None:
 
 @cli.command()
 @click.argument("role_arn")
-def make_migrations_policies(role_arn) -> None:
-    aws_organized_policies.make_migrations_policies(role_arn)
+def make_migration_policies(role_arn) -> None:
+    aws_organized_policies.make_migration_policies(role_arn)
 
 
 @cli.command()
 @click.argument("role_arn")
-def apply_migrations_policies(role_arn) -> None:
-    aws_organized_policies.apply_migrations_policies(role_arn)
+def apply_migration_policies(role_arn) -> None:
+    aws_organized_policies.apply_migration_policies(role_arn)
+
 
 @cli.command()
 @click.argument("role_arn")
@@ -227,7 +230,7 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     output_format: str,
-        migrate_role_arn: str,
+    migrate_role_arn: str,
 ):
     helpers.provision_codepipeline_stack(
         codepipeline_role_name,

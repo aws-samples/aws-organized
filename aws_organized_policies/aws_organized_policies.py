@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from betterboto import client as betterboto_client
 from pathlib import Path
-
+import time
 
 STATE_FILE = "state.yaml"
 client = boto3.client("sts")
@@ -18,8 +18,13 @@ SERVICE_CONTROL_POLICY = "SERVICE_CONTROL_POLICY"
 ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
 service_control_policies_path = "environment/Policies/SCPs"
 SEP = os.path.sep
+ATTACH_POLICY = "ATTACH_POLICY"
+DETACH_POLICY = "DETACH_POLICY"
 
 policies_migration_path = "environment/policies_migration"
+make_individual_migration_policies_path = (
+    "environment/policies_migration/migrations_to_apply"
+)
 
 
 def read_policies() -> None:  # Reads + Returns a list {'SERVICE_CONTROL_POLICIEs': ['c', 'd', 'e']}
@@ -65,12 +70,18 @@ def get_service_control_policies_for_target(policies_target_list, root_id) -> di
             policy.get("Policy") for policy in describe_service_control_policies
         ]
 
-        policies_name_for_each_target[policies_target_list[target_id] if policies_target_list[target_id]!='Root' else root_id] = [
-            helper.get_valid_filename(policy.get("Policy").get("PolicySummary").get("Name"))
+        policies_name_for_each_target[
+            policies_target_list[target_id]
+            if policies_target_list[target_id] != "Root"
+            else root_id
+        ] = [
+            helper.get_valid_filename(
+                policy.get("Policy").get("PolicySummary").get("Name")
+            )
             for policy in describe_service_control_policies
         ]
 
-    print("policies_name_for_each_target",policies_name_for_each_target)
+    print("policies_name_for_each_target", policies_name_for_each_target)
     return policies_for_each_target, policies_name_for_each_target
 
 
@@ -94,7 +105,7 @@ def get_organizational_units(root_id) -> dict:
         ]["Name"]
         for ou_Id in ou_list
     }
-    all_ous[root_id] = "Root"
+    all_ous[root_id] = root_id
     return all_ous
 
 
@@ -182,16 +193,39 @@ def import_organization_policies(role_arn) -> None:
         role_arn,
         f"organizations",
     ) as organizations:
-        list_accounts_response = organizations.list_accounts_single_page()
+        list_accounts_details = organizations.list_accounts_single_page()
         list_roots_response = organizations.list_roots_single_page()
         root_id = list_roots_response.get("Roots")[0].get("Id")
         org_path = SEP.join(["environment", root_id])
         all_files_in_environment_list = helper.getListOfFiles(org_path)
 
+    # Step 0 get all policies in org
+    all_service_control_policies_in_org = org.list_policies(
+        Filter=SERVICE_CONTROL_POLICY
+    ).get("Policies")
+
+    all_service_control_policies_in_org_with_policy_summary = [
+        org.describe_policy(PolicyId=policy.get("Id")).get("Policy")
+        for policy in all_service_control_policies_in_org
+    ]
+
+    [
+        helper.write_to_file(
+            {
+                "PolicySummary": policy.get("PolicySummary"),
+                "Content": json.loads(policy.get("Content")),
+            },
+            service_control_policies_path,
+            helper.get_valid_filename(policy.get("PolicySummary").get("Name"))
+            + ".json",
+        )
+        for policy in all_service_control_policies_in_org_with_policy_summary
+    ]
+
     # Step 1 Save Attached policies
     accounts = {
         account.get("Id"): account.get("Name")
-        for account in list_accounts_response.get("Accounts")
+        for account in list_accounts_details.get("Accounts")
     }
     ous = get_organizational_units(root_id)  # list all OUs in org
     service_control_policies_path_for_target = helper.map_scp_path_for_target_name(
@@ -200,7 +234,7 @@ def import_organization_policies(role_arn) -> None:
 
     (
         service_control_policies_for_target,
-        scp_name_for_each_target
+        scp_name_for_each_target,
     ) = get_service_control_policies_for_target(ous | accounts, root_id)
     write_policies_to_target_yaml(
         service_control_policies_for_target, service_control_policies_path_for_target
@@ -258,7 +292,20 @@ def map_policy_name_to_id(org_ids_map, attached_Policies, policy_ids_map) -> dic
     return policies_to_apply
 
 
-def make_migrations_policies(role_arn) -> None:
+def write_migrations(attach_policies, detach_policies):
+    policies_migration_path + "/migrations_to_apply"
+    # target: policies
+
+    for target, policy_list in attach_policies.items():
+        # data, path, file_name
+        for policy in policy_list:
+            file_name = f"{ATTACH_POLICY}_{target}_{policy}"
+            helper.write_to_file(
+                "a", policies_migration_path + "/migrations_to_apply", file_name
+            )
+
+
+def make_migration_policies(role_arn) -> None:
     # 0 get initial state
     # 0.1 read for org state
     # 0.2 read for account state
@@ -278,12 +325,14 @@ def make_migrations_policies(role_arn) -> None:
         all_files_in_environment_list = helper.getListOfFiles(org_path)
 
     # read initial setup
-    initial_scp_per_target_state = helper.read_yaml(policies_migration_path + "/initial_state.yaml")
+    initial_scp_per_target_state = helper.read_yaml(
+        policies_migration_path + "/initial_state.yaml"
+    )
     current_policies_state = dict()
     attach_policies = dict()
     detach_policies = dict()
 
-    print("all_files_in_environment_list",all_files_in_environment_list)
+    print("all_files_in_environment_list", all_files_in_environment_list)
     for file_path in all_files_in_environment_list:
         if "_service_control_policies.yaml" in file_path:
             target_name = file_path.split("/")[-2]
@@ -295,7 +344,7 @@ def make_migrations_policies(role_arn) -> None:
     for key, value in current_policies_state.items():
         print("key", key)
         print("value", value)
-        print("initial_scp_per_target_state",initial_scp_per_target_state)
+        print("initial_scp_per_target_state", initial_scp_per_target_state)
         # find diff policy
         if value != initial_scp_per_target_state[key]:
             detached_policy_list = [
@@ -314,94 +363,145 @@ def make_migrations_policies(role_arn) -> None:
             if attach_policies_list:
                 attach_policies[key] = attach_policies_list
 
-    # 3 Create migration document
+    # 3 Create migration document summary
     helper.write_to_file(
         {
             "Attached_Policies": attach_policies,
             "Detached_Policies": detach_policies,
         },
-        policies_migration_path, "migration_state.yaml",
+        policies_migration_path,
+        "migration_state_summary.yaml",
     )
 
+    # 3 Create migration folder
+    # map policy name to policy content
+    policies_map = dict()
+    for policy in os.listdir(service_control_policies_path):
+        policies_map[policy.replace(".json", "")] = helper.read_json(
+            SEP.join([service_control_policies_path, policy])
+        )
+
+    for target, policy_list in attach_policies.items():
+        print(attach_policies.items())
+        print("\n")
+        print("target", target)
+        print("\n")
+        # data, path, file_name
+        for policy in policy_list:
+            file_name = f"{ATTACH_POLICY}_SCP_{policy}_TARGET_{target}.json"
+            policies_map[policy]["Migration"] = {
+                "Migration_Type": ATTACH_POLICY,
+                "Target": target,
+                "Policy_Name": policy,
+                "Policy_Id": policies_map[policy].get("PolicySummary").get("Id"),
+            }
+            helper.write_to_file(
+                policies_map[policy],
+                policies_migration_path + "/migrations_to_apply",
+                file_name,
+            )
+
+    for target, policy_list in detach_policies.items():
+        # data, path, file_name
+        for policy in policy_list:
+            file_name = f"{DETACH_POLICY}_SCP_{policy}_TARGET_{target}.json"
+            policies_map[policy]["Migration"] = {
+                "Migration_Type": DETACH_POLICY,
+                "Target": target,
+                "Policy_Name": policy,
+                "Policy_Id": policies_map[policy].get("PolicySummary").get("Id"),
+            }
+            helper.write_to_file(
+                policies_map[policy],
+                policies_migration_path + "/migrations_to_apply",
+                file_name,
+            )
     return
 
 
-def apply_migrations():
-    # TODO save to file and read to speed up
-    accounts = get_accounts()  # list all Accounts in org
-    ous = get_organizational_units()  # list all OUs in org
+def apply_migration_policies(role_arn):
+    click.echo("Updating state file")
+    with betterboto_client.CrossAccountClientContextManager(
+        "organizations",
+        role_arn,
+        f"organizations",
+    ) as organizations:
+        list_accounts_response = organizations.list_accounts_single_page()
+        list_roots_response = organizations.list_roots_single_page()
+        root_id = list_roots_response.get("Roots")[0].get("Id")
+        org_path = SEP.join(["environment", root_id])
+        all_files_in_environment_list = helper.getListOfFiles(org_path)
+
+    # Step 1 Save Attached policies
+    accounts = {
+        account.get("Id"): account.get("Name")
+        for account in list_accounts_response.get("Accounts")
+    }
+    ous = get_organizational_units(root_id)  # list all OUs in org
 
     org_ids_map = accounts | ous
     policy_ids_map = dict()
 
     # map SCP name to Ids
-    for file_path in helper.getListOfFiles(service_control_policies_path):
-        policy = helper.read_yaml(file_path)["PolicySummary"]
+    for file_path in os.listdir(service_control_policies_path):
+        policy = helper.read_json(SEP.join([service_control_policies_path, file_path]))[
+            "PolicySummary"
+        ]
         policy_ids_map[helper.get_valid_filename(policy["Name"])] = policy["Id"]
 
-    migration_to_apply = helper.read_yaml(migration_path + "migration_state.yaml")
+    # TODO make this in accordance with Eamonn's AWS Organized general way of doing things
+    # so the user will be able to type in the file name and the migration wil be applied
+    reverse_org_ids_map = dict((v, k) for k, v in org_ids_map.items())
+    for migration_policy in os.listdir(make_individual_migration_policies_path):
+        policy = helper.read_json(
+            SEP.join([make_individual_migration_policies_path, migration_policy])
+        ).get("Migration")
 
-    attached_Policies = migration_to_apply["Attached_Policies"]
-    detached_Policies = migration_to_apply["Detached_Policies"]
+        policy_id = policy.get("Policy_Id")
+        policy_name = policy.get("Policy_Name")
+        target_name = policy.get("Target")
+        target_id = reverse_org_ids_map[target_name]
+        policy_type = policy.get("Migration_Type")
 
-    # [target_id] :[new_policies_ids_list]
-    policies_to_attach = map_policy_name_to_id(
-        org_ids_map, attached_Policies, policy_ids_map
-    )
-    policies_to_detach = map_policy_name_to_id(
-        org_ids_map, detached_Policies, policy_ids_map
-    )
+        try:
+            org.attach_policy(
+                PolicyId=policy_id, TargetId=target_id
+            ) if policy_type == ATTACH_POLICY else org.detach_policy(
+                PolicyId=policy_id, TargetId=target_id
+            )
+        except:
+            print(
+                f"Error when attempting to {policy_type} {policy_name} on target {target_name}."
+            )
+        else:
+            print(
+                f"Successfully performed {policy_type} {policy_name} on target {target_name}."
+            )
 
-    # attach policies
-    for target_id, policies_list in policies_to_attach.items():
-        for policy_id in policies_list:
-            print(f"Attached policies {policy_id} on target {target_id}.")
-            response = org.attach_policy(PolicyId=policy_id, TargetId=target_id)
-
-    # detach policies
-    for target_id, policies_list in policies_to_detach.items():
-        for policy_id in policies_list:
-            print(f"Detached policies {policy_id} on target {target_id}.")
-            response = org.detach_policy(PolicyId=policy_id, TargetId=target_id)
-
-    with open(migration_path + "migration_history.yaml", "w") as outfile:
-        yaml.dump(
-            {
-                f"Attached_Policies {datetime.now()}": attached_Policies,
-                f"Detached_Policies {datetime.now()}": detached_Policies,
-            },
-            outfile,
-            default_flow_style=False,
-        )
+    # Write history file
+    # with open(policies_migration_path + "migration_history.yaml", "w") as outfile:
+    #     yaml.dump(
+    #         {
+    #             f"Attached_Policies {datetime.now()}": attached_Policies,
+    #             f"Detached_Policies {datetime.now()}": detached_Policies,
+    #         },
+    #         outfile,
+    #         default_flow_style=False,
+    #     )
 
 
 def clean_up():
-    for file_path in helper.getListOfFiles(organization_path):
+    for file_path in helper.getListOfFiles(policies_migration_path):
         if "policies.yaml" in file_path:
             print(f"Deleted {file_path} policy descriptions files")
             os.remove(file_path)
 
 
 # TO DO List
-# cleanup:
-#   TODO Move what can be moved to helper (if func is used more than once)
-# fault tolerant:
-#   TODO Add controls ( if repo does not exist + create)
+# TODO add source on inherited policies
 # extra features:
 #   SCPs add new
 #   TODO Extend to other policy types
 # Important for functionality:
 #   TODO Add Unattached Policies
 #   TODO Add Inherited policies?
-
-
-# TODO SCP change to match the original name
-
-# Notes
-# better user experience
-# what thinking and something to carry on with this
-# readable policy p-FullAWSAcces api_describe policy
-# only going to tell the id of the policy
-# describe_policy
-# content of the policy
-# OU name is unique

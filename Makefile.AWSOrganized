@@ -13,11 +13,11 @@ MAKE_MIGRATIONS_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOr
 import-organization-policies:
 	poetry run aws-organized import-organization-policies $(SCP_ROLE_ARN)
 
-make-migrations-policies:
-	poetry run aws-organized make-migrations-policies $(SCP_ROLE_ARN)
+make-migration-policies:
+	poetry run aws-organized make-migration-policies $(SCP_ROLE_ARN)
 
-apply_migrations_policies:
-	poetry run aws-organized apply-migrations-policies $(SCP_ROLE_ARN)
+apply-migration-policies:
+	poetry run aws-organized apply-migration-policies $(SCP_ROLE_ARN)
 
 import-organization:
 	poetry run aws-organized import-organization $(IMPORT_ROLE_ARN)

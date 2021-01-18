@@ -77,6 +77,11 @@ def read_yaml(file_path):
             return None
 
 
+def read_json(file_path):
+    with open(file_path) as f:
+        return json.load(f)
+
+
 def write_to_file(data, path, file_name) -> None:
     Path(path).mkdir(parents=True, exist_ok=True)
     if ".yaml" in file_name:
