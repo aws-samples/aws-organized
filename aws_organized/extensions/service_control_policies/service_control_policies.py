@@ -6,7 +6,7 @@ import yaml
 import click
 import os
 from betterboto import client as betterboto_client
-from . import scp_migrations
+from . import migrations
 
 SERVICE_CONTROL_POLICY = "SERVICE_CONTROL_POLICY"
 ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
@@ -188,7 +188,7 @@ def check_policies(root_id: str, organizations) -> None:
             ) or local_policy.get("Description") != remote_policy.get("Description"):
                 write_migration(
                     root_id,
-                    scp_migrations.UPDATE_POLICY_DETAILS,
+                    migrations.POLICY_DETAILS_UPDATE,
                     dict(
                         id=local_policy.get("Id"),
                         name=local_policy.get("Name"),
@@ -201,7 +201,7 @@ def check_policies(root_id: str, organizations) -> None:
             if local_policy_content != p.get("Content"):
                 write_migration(
                     root_id,
-                    scp_migrations.UPDATE_POLICY_CONTENT,
+                    migrations.POLICY_CONTENT_UPDATE,
                     dict(
                         id=local_policy.get("Id"),
                         content=local_policy_content,
@@ -213,7 +213,7 @@ def check_policies(root_id: str, organizations) -> None:
             )
             write_migration(
                 root_id,
-                scp_migrations.POLICY_CREATE,
+                migrations.POLICY_CREATE,
                 dict(
                     name=policy_file_path.split(SEP)[-2],
                     content=local_policy_content,
@@ -262,7 +262,7 @@ def check_attachment(root_id: str, policy_file_path: str, organizations) -> None
         if not found:
             write_migration(
                 root_id,
-                scp_migrations.POLICY_ATTACH,
+                migrations.POLICY_ATTACH,
                 dict(
                     policy_id=local_policy.get("Id"),
                     target_id=meta.get("Id"),

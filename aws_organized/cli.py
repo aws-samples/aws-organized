@@ -6,7 +6,7 @@ import click
 
 from aws_organized import helpers
 from aws_organized import aws_organized
-from aws_organized import aws_organized_policies
+from aws_organized.extensions.service_control_policies import service_control_policies
 
 
 @click.group()
@@ -18,13 +18,13 @@ def cli():
 @cli.command()
 @click.argument("role_arn")
 def make_migration_policies(role_arn) -> None:
-    aws_organized_policies.make_migration_policies(role_arn)
+    service_control_policies.make_migration_policies(role_arn)
 
 
 @cli.command()
 @click.argument("role_arn")
 def apply_migration_policies(role_arn) -> None:
-    aws_organized_policies.apply_migration_policies(role_arn)
+    service_control_policies.apply_migration_policies(role_arn)
 
 
 @cli.command()
@@ -35,7 +35,7 @@ def import_organization(role_arn):
         if root_id in ["migrations", "Policies", "policies_migration"]:
             continue
         click.echo(f"Processing root_id: {root_id}")
-        aws_organized_policies.import_organization_policies(role_arn, root_id)
+        service_control_policies.import_organization_policies(role_arn, root_id)
 
 
 @cli.command()
@@ -92,7 +92,7 @@ def make_migrations(role_arn):
         if root_id in ["migrations", "Policies", "policies_migration"]:
             continue
         click.echo(f"Processing root_id: {root_id}")
-        aws_organized_policies.make_migration_policies(role_arn, root_id)
+        service_control_policies.make_migration_policies(role_arn, root_id)
 
 
 @cli.command()
