@@ -8,16 +8,6 @@ def cli():
     pass
 
 
-@cli.command()
-def hello() -> None:
-    print("Hello world")
-
-
-@cli.command()
-@click.argument("role_arn")
-def import_organization(role_arn) -> None:
-    # TODO remove print
-    print(aws_organized_policies.import_organization_policies(role_arn))
 
 
 @cli.command()

@@ -1,4 +1,4 @@
-import regex as re
+import re
 import yaml
 import json
 import os
@@ -97,6 +97,7 @@ def write_inherited_yaml(data, path) -> None:
         cur_yaml = yaml.safe_load(yamlfile)["Policies_Attached"]  # Note the safe_load
     if cur_yaml:
         with open(path, "w") as yamlfile:
-            yaml.safe_dump(
-                {"Policies_Inherited": data} | {"Policies_Attached": cur_yaml}, yamlfile
-            )  # Also note the safe_dump
+            policies = dict()
+            policies.update({"Policies_Inherited": data})
+            policies.update({"Policies_Attached": cur_yaml})
+            yaml.safe_dump(policies, yamlfile)  # Also note the safe_dump

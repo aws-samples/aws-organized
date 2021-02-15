@@ -1,15 +1,13 @@
+import glob
+
 import boto3
 import json
 import yaml
-from aws_organized_policies import helper
-import os
-from datetime import datetime
+from . import helper
 import click
 import os
-from datetime import datetime
 from betterboto import client as betterboto_client
 from pathlib import Path
-import time
 
 STATE_FILE = "state.yaml"
 client = boto3.client("sts")
@@ -130,6 +128,8 @@ def write_policies_to_individual_target_yaml(
 def write_policies_to_target_yaml(target_SCPs, target_name_path) -> dict:
     policies_per_target = dict()
 
+    raise Exception(target_name_path)
+
     for target_id, policies_attached_to_target in target_SCPs.items():
         policies_name = [
             helper.get_valid_filename(policy["PolicySummary"]["Name"])
@@ -186,102 +186,156 @@ def get_all_policies_in_account():
     return all_SCPs
 
 
-def import_organization_policies(role_arn) -> None:
+def save_all_policies_from_org(organizations) -> None:  # done
+    all_service_control_policies_in_org = organizations.list_policies_single_page(
+        Filter=SERVICE_CONTROL_POLICY
+    ).get("Policies")
+    # feedback removed second loop. be careful looping over data from apis as you dont know the size of the struct
+    for policy in all_service_control_policies_in_org:
+        described_policy = organizations.describe_policy(PolicyId=policy.get("Id")).get(
+            "Policy"
+        )
+        helper.write_to_file(
+            dict(
+                **described_policy.get("PolicySummary"),
+                content=json.loads(described_policy.get("Content")),
+            ),
+            service_control_policies_path,
+            helper.get_valid_filename(described_policy.get("PolicySummary").get("Name"))
+            + ".json",
+        )
+
+
+def get_id_for_entity_from_path(entity_path: str) -> str:
+    return yaml.safe_load(open(entity_path, "r").read()).get("Id")
+
+
+def write_policy_for_given_entity_path(
+    entity_path: str, application_method: str, policies: dict
+) -> None:
+    existing = dict()
+    existing[application_method] = policies
+    open(
+        entity_path.replace("_meta.yaml", "_service_control_policies.yaml"), "w"
+    ).write(yaml.safe_dump(existing))
+
+
+def save_policies_for_entity(entity_path: str, organizations) -> None:
+    entity_path_parts = entity_path.split(SEP)
+    entity_type = entity_path_parts[-3]
+    click.echo(f"{entity_type} - {entity_path}")
+    policies = organizations.list_policies_for_target_single_page(
+        TargetId=get_id_for_entity_from_path(entity_path),
+        Filter="SERVICE_CONTROL_POLICY",
+    ).get("Policies")
+    write_policy_for_given_entity_path(entity_path, "Attached", policies)
+
+
+def save_policies_for_each_entity(entities: list, organizations) -> None:
+    for entity in entities:
+        save_policies_for_entity(entity, organizations)
+
+
+def save_targets_for_policy(root_id, organizations) -> None:
+    policies = glob.glob(f"environment/Policies/SCPs/*.json")
+    state = yaml.safe_load(open("state.yaml", "r").read())
+    for policy_file in policies:
+        policy = json.loads(open(policy_file, "r").read())
+        policy_id = policy.get("Id")
+        targets = organizations.list_targets_for_policy_single_page(
+            PolicyId=policy_id
+        ).get("Targets", [])
+        for target in targets:
+            inherited = list()
+            if target.get("Type") == "ACCOUNT":
+                account = (
+                    state.get("accounts").get(target.get("TargetId")).get("details")
+                )
+                attached = glob.glob(
+                    f"environment/{root_id}/**/{account.get('Name')}/_meta.yaml",
+                    recursive=True,
+                )
+            elif target.get("Type") == "ORGANIZATIONAL_UNIT":
+                ou = (
+                    state.get("organizational_units")
+                    .get("by_id")
+                    .get(target.get("TargetId"))
+                    .get("details")
+                )
+                attached = glob.glob(
+                    f"environment/{root_id}/**/{ou.get('Name')}/_meta.yaml",
+                    recursive=True,
+                )
+                inherited += glob.glob(
+                    f"environment/{root_id}/**/{ou.get('Name')}/_accounts/*/_meta.yaml",
+                    recursive=True,
+                )
+                inherited += glob.glob(
+                    f"environment/{root_id}/**/{ou.get('Name')}/_organizational_units/**/_meta.yaml",
+                    recursive=True,
+                )
+            elif target.get("Type") == "ROOT":
+                attached = glob.glob(
+                    f"environment/{root_id}/_meta.yaml",
+                    recursive=True,
+                )
+                inherited += glob.glob(
+                    f"environment/{root_id}/_meta.yaml",
+                    recursive=True,
+                )
+
+            else:
+                raise Exception(f"Not handled type: {target.get('Type')}")
+
+            if attached:
+                assert len(attached) == 1
+                attached = attached[0]
+                output_path = attached.replace(
+                    "_meta.yaml", "_service_control_policies.yaml"
+                )
+                output = dict(
+                    Attached=list(),
+                    Inherited=list(),
+                )
+                if os.path.exists(output_path):
+                    output = yaml.safe_load(open(output_path, "r").read())
+                output["Attached"].append(policy)
+                open(output_path, "w").write(yaml.safe_dump(output))
+
+                for thing in inherited:
+                    output_path = thing.replace(
+                        "_meta.yaml", "_service_control_policies.yaml"
+                    )
+                    output = dict(
+                        Attached=list(),
+                        Inherited=list(),
+                    )
+                    if os.path.exists(output_path):
+                        output = yaml.safe_load(open(output_path, "r").read())
+                    i = dict(Source=attached)
+                    i.update(policy)
+                    output["Inherited"].append(i)
+                    open(output_path, "w").write(yaml.safe_dump(output))
+
+
+def remove_any_existing_policy_records(root_id: str) -> None:
+    policies = glob.glob(
+        f"environment/{root_id}/**/_service_control_policies.yaml", recursive=True
+    )
+    for policy in policies:
+        os.remove(policy)
+
+
+def import_organization_policies(role_arn, root_id) -> None:  # doing
     click.echo("Updating state file")
     with betterboto_client.CrossAccountClientContextManager(
         "organizations",
         role_arn,
         f"organizations",
     ) as organizations:
-        list_accounts_details = organizations.list_accounts_single_page()
-        list_roots_response = organizations.list_roots_single_page()
-        root_id = list_roots_response.get("Roots")[0].get("Id")
-        org_path = SEP.join(["environment", root_id])
-        all_files_in_environment_list = helper.getListOfFiles(org_path)
-
-    # Step 0 get all policies in org
-    all_service_control_policies_in_org = org.list_policies(
-        Filter=SERVICE_CONTROL_POLICY
-    ).get("Policies")
-
-    all_service_control_policies_in_org_with_policy_summary = [
-        org.describe_policy(PolicyId=policy.get("Id")).get("Policy")
-        for policy in all_service_control_policies_in_org
-    ]
-
-    [
-        helper.write_to_file(
-            {
-                "PolicySummary": policy.get("PolicySummary"),
-                "Content": json.loads(policy.get("Content")),
-            },
-            service_control_policies_path,
-            helper.get_valid_filename(policy.get("PolicySummary").get("Name"))
-            + ".json",
-        )
-        for policy in all_service_control_policies_in_org_with_policy_summary
-    ]
-
-    # Step 1 Save Attached policies
-    accounts = {
-        account.get("Id"): account.get("Name")
-        for account in list_accounts_details.get("Accounts")
-    }
-    ous = get_organizational_units(root_id)  # list all OUs in org
-    service_control_policies_path_for_target = helper.map_scp_path_for_target_name(
-        all_files_in_environment_list, root_id
-    )
-
-    (
-        service_control_policies_for_target,
-        scp_name_for_each_target,
-    ) = get_service_control_policies_for_target(ous | accounts, root_id)
-    write_policies_to_target_yaml(
-        service_control_policies_for_target, service_control_policies_path_for_target
-    )
-
-    # Step 2 Save Inherited policies
-    for file_path in all_files_in_environment_list:
-        if "_service_control_policies.yaml" in file_path:
-            current_scp_path_list = file_path.split("/")
-            root_org_scp_path = org_path + "/_service_control_policies.yaml"
-            local_policy = [
-                policy
-                for policy in helper.read_yaml(root_org_scp_path)["Policies_Attached"]
-            ]
-            for i in range(len(current_scp_path_list)):
-                # go through every OU in org structure
-                if "_organizational_units" in current_scp_path_list[i]:
-                    current_organizational_unit_index = current_scp_path_list.index(
-                        current_scp_path_list[i + 1]
-                    )
-                    current_policy_path = (
-                        SEP.join(
-                            current_scp_path_list[:-current_organizational_unit_index]
-                        )
-                        + "/_service_control_policies.yaml"
-                    )
-
-                    # TODO change this to save as policy_name ===> source: Org_source
-                    local_policy.extend(
-                        [
-                            attached_policy
-                            for attached_policy in helper.read_yaml(
-                                current_policy_path
-                            )["Policies_Attached"]
-                            if attached_policy not in local_policy
-                        ]
-                    )
-
-                if (
-                    file_path != root_org_scp_path
-                    and "_service_control_policies.yaml" in current_scp_path_list[i]
-                ):
-                    helper.write_inherited_yaml(local_policy, file_path)
-    # save initial set up
-    helper.write_to_file(
-        scp_name_for_each_target, policies_migration_path, "initial_state.yaml"
-    )
+        remove_any_existing_policy_records(root_id)
+        save_all_policies_from_org(organizations)
+        save_targets_for_policy(root_id, organizations)
 
 
 def map_policy_name_to_id(org_ids_map, attached_Policies, policy_ids_map) -> dict:
@@ -305,7 +359,7 @@ def write_migrations(attach_policies, detach_policies):
             )
 
 
-def make_migration_policies(role_arn) -> None:
+def make_migration_policies(role_arn: str, root_id: str) -> None:
     # 0 get initial state
     # 0.1 read for org state
     # 0.2 read for account state
@@ -318,9 +372,6 @@ def make_migration_policies(role_arn) -> None:
         role_arn,
         f"organizations",
     ) as organizations:
-        list_accounts_response = organizations.list_accounts_single_page()
-        list_roots_response = organizations.list_roots_single_page()
-        root_id = list_roots_response.get("Roots")[0].get("Id")
         org_path = SEP.join(["environment", root_id])
         all_files_in_environment_list = helper.getListOfFiles(org_path)
 

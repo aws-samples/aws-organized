@@ -87,6 +87,9 @@ def generate_import_organization_role_template(
             awacs_organizations.ListChildren,
             awacs_organizations.DescribeOrganizationalUnit,
             awacs_organizations.ListParents,
+            awacs_organizations.ListPolicies,
+            awacs_organizations.DescribePolicy,
+            awacs_organizations.ListTargetsForPolicy,
         ],
         role_name,
         path,
@@ -280,10 +283,13 @@ def generate_codepipeline_template(
                                     awacs_s3.GetObjectVersion,
                                 ],
                                 Resource=[
-                                    troposphere.Join(":", [
-                                        troposphere.GetAtt(artifact_store, 'Arn'),
-                                        "*"
-                                    ])
+                                    troposphere.Join(
+                                        ":",
+                                        [
+                                            troposphere.GetAtt(artifact_store, "Arn"),
+                                            "*",
+                                        ],
+                                    )
                                 ],
                             ),
                             aws.Statement(
@@ -293,11 +299,14 @@ def generate_codepipeline_template(
                                     awacs_s3.ListAllMyBuckets,
                                 ],
                                 Resource=[
-                                    troposphere.Join(":", [
-                                        "arn",
-                                        troposphere.Partition,
-                                        "s3:::*",
-                                    ])
+                                    troposphere.Join(
+                                        ":",
+                                        [
+                                            "arn",
+                                            troposphere.Partition,
+                                            "s3:::*",
+                                        ],
+                                    )
                                 ],
                             ),
                             # aws.Statement(
@@ -425,12 +434,8 @@ def generate_codepipeline_template(
                             aws.Statement(
                                 Sid="4",
                                 Effect=aws.Allow,
-                                Action=[
-                                    awacs_sts.AssumeRole
-                                ],
-                                Resource=[
-                                    migrate_role_arn
-                                ]
+                                Action=[awacs_sts.AssumeRole],
+                                Resource=[migrate_role_arn],
                             ),
                             # aws.Statement(
                             #     Sid="5",
@@ -486,7 +491,7 @@ def generate_codepipeline_template(
                         "Type": "PLAINTEXT",
                         "Value": migrate_role_arn,
                     }
-                ]
+                ],
             ),
             Name=project_name,
             ServiceRole=troposphere.GetAtt(codebuild_role, "Arn"),
@@ -586,7 +591,7 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     output_format: str,
-        migrate_role_arn: str,
+    migrate_role_arn: str,
 ) -> None:
     template = generate_codepipeline_template(
         codepipeline_role_name,

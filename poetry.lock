@@ -8,7 +8,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [[package]]
 name = "better-boto"
-version = "0.34.1"
+version = "0.36.0"
 description = "Helpers to make using boto3 more enjoyable"
 category = "main"
 optional = false
@@ -136,20 +136,20 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 [package.extras]
 brotli = ["brotlipy (>=0.6.0)"]
 secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
-socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
+socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "1bc6b61cc2dff614d241d2c3710896bc2ca0007a228a135ad4fb228d9a438217"
+content-hash = "21f6894549a81906284048c80a45e0500f538327ae41a5e94bb6698fada619a7"
 
 [metadata.files]
 awacs = [
     {file = "awacs-1.0.1.tar.gz", hash = "sha256:1c678fcd89ca6d7a2bba17374aae3720271f8b74d92390aff0612b65b3c8b667"},
 ]
 better-boto = [
-    {file = "better-boto-0.34.1.tar.gz", hash = "sha256:fdb452fcd356a64f279f7d046bb5cfef8385ee839489d5dca8597699b48bf799"},
-    {file = "better_boto-0.34.1-py3-none-any.whl", hash = "sha256:4616258856c7f5822eb5f94e55a90f63ec4a289bd1d55c59eb354db810de6c0a"},
+    {file = "better-boto-0.36.0.tar.gz", hash = "sha256:b64833ba661e35cc79212d60f41190c18a7d4374f560960ecb1c0a2c4dc38268"},
+    {file = "better_boto-0.36.0-py3-none-any.whl", hash = "sha256:1d8baf99d2448a9eec023b93eedb4b9bb79bdfd605cc004d06e4d36917883552"},
 ]
 boto3 = [
     {file = "boto3-1.16.4-py2.py3-none-any.whl", hash = "sha256:60c78f96c690974cd388270e4c82e4807f5034c5544f8a26ec3c3844df726cff"},
@@ -185,6 +185,8 @@ pyyaml = [
     {file = "PyYAML-5.3.1-cp37-cp37m-win_amd64.whl", hash = "sha256:73f099454b799e05e5ab51423c7bcf361c58d3206fa7b0d555426b1f4d9a3eaf"},
     {file = "PyYAML-5.3.1-cp38-cp38-win32.whl", hash = "sha256:06a0d7ba600ce0b2d2fe2e78453a470b5a6e000a985dd4a4e54e436cc36b0e97"},
     {file = "PyYAML-5.3.1-cp38-cp38-win_amd64.whl", hash = "sha256:95f71d2af0ff4227885f7a6605c37fd53d3a106fcab511b8860ecca9fcf400ee"},
+    {file = "PyYAML-5.3.1-cp39-cp39-win32.whl", hash = "sha256:ad9c67312c84def58f3c04504727ca879cb0013b2517c85a9a253f0cb6380c0a"},
+    {file = "PyYAML-5.3.1-cp39-cp39-win_amd64.whl", hash = "sha256:6034f55dab5fea9e53f436aa68fa3ace2634918e8b5994d82f3621c04ff5ed2e"},
     {file = "PyYAML-5.3.1.tar.gz", hash = "sha256:b8eac752c5e14d3eca0e6dd9199cd627518cb5ec06add0de9d32baeee6fe645d"},
 ]
 s3transfer = [
