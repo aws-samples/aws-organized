@@ -139,6 +139,8 @@ def generate_make_migrations_role_template(
         [
             awacs_organizations.DescribeOrganizationalUnit,
             awacs_organizations.ListParents,
+            awacs_organizations.DescribePolicy,
+            awacs_organizations.ListPoliciesForTarget,
         ],
         role_name,
         path,
