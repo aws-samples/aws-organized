@@ -6,20 +6,9 @@
 CICD_ACCOUNT_ID="156551640785"
 ORG_MANAGEMENT_ACCOUNT_ID=156551640785
 
-SCP_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/admin"
-ORG_MANAGEMENT_ACCOUNT_ID=156551640785
 IMPORT_ROLE_ARN="arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/ImportOrganizationRole"
 MIGRATE_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MigrateRole"
 MAKE_MIGRATIONS_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MakeMigrationsRole"
-
-import-organization-policies:
-	poetry run aws-organized import-organization-policies $(SCP_ROLE_ARN)
-
-make-migration-policies:
-	poetry run aws-organized make-migration-policies $(SCP_ROLE_ARN)
-
-apply-migration-policies:
-	poetry run aws-organized apply-migration-policies $(SCP_ROLE_ARN)
 
 import-organization:
 	poetry run aws-organized import-organization $(IMPORT_ROLE_ARN)
