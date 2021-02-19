@@ -13,6 +13,8 @@ ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
 ACCOUNT = "ACCOUNT"
 SEP = os.path.sep
 
+EXTENSION = "service_control_policies"
+
 
 def save_all_policies_from_org(root_id: str, organizations) -> None:  # done maybe
     all_service_control_policies_in_org = organizations.list_policies_single_page(
@@ -187,6 +189,7 @@ def check_policies(root_id: str, organizations) -> None:
                 "Name"
             ) or local_policy.get("Description") != remote_policy.get("Description"):
                 write_migration(
+                    EXTENSION,
                     root_id,
                     migrations.POLICY_DETAILS_UPDATE,
                     dict(
@@ -200,6 +203,7 @@ def check_policies(root_id: str, organizations) -> None:
             )
             if local_policy_content != p.get("Content"):
                 write_migration(
+                    EXTENSION,
                     root_id,
                     migrations.POLICY_CONTENT_UPDATE,
                     dict(
@@ -212,6 +216,7 @@ def check_policies(root_id: str, organizations) -> None:
                 json.loads(open(policy_content_path, "r").read())
             )
             write_migration(
+                EXTENSION,
                 root_id,
                 migrations.POLICY_CREATE,
                 dict(
@@ -221,7 +226,7 @@ def check_policies(root_id: str, organizations) -> None:
             )
 
 
-def write_migration(root_id: str, migration_type: str, migration_params: dict) -> None:
+def write_migration(extension: str, root_id: str, migration_type: str, migration_params: dict) -> None:
     now = datetime.now()
     timestamp = datetime.timestamp(now)
     migration_file_name = f"{timestamp}_{migration_type}.yaml"
@@ -235,6 +240,7 @@ def write_migration(root_id: str, migration_type: str, migration_params: dict) -
         f.write(
             yaml.safe_dump(
                 dict(
+                    extension=extension,
                     migration_type=migration_type,
                     migration_params=migration_params,
                 )
@@ -278,7 +284,7 @@ def check_attachments(root_id: str, organizations) -> None:
         check_attachment(root_id, policy_file_path, organizations)
 
 
-def make_migration_policies(role_arn: str, root_id: str) -> None:
+def make_migrations(role_arn: str, root_id: str) -> None:
     with betterboto_client.CrossAccountClientContextManager(
         "organizations",
         role_arn,
