@@ -267,6 +267,7 @@ def check_attachment(root_id: str, policy_file_path: str, organizations) -> None
                 found = True
         if not found:
             write_migration(
+                EXTENSION,
                 root_id,
                 migrations.POLICY_ATTACH,
                 dict(
