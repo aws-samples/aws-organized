@@ -180,7 +180,6 @@ def generate_migrate_role_template(
             awacs_organizations.CreateOrganizationalUnit,
             awacs_organizations.UpdateOrganizationalUnit,
             awacs_organizations.MoveAccount,
-
             # TODO add in SCP stuff
             awacs_organizations.CreatePolicy,
             awacs_organizations.UpdatePolicy,

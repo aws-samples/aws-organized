@@ -11,7 +11,8 @@ import yaml
 import click
 import logging
 import sys
-from aws_organized import migrations
+from . import migrations
+from extensions.service_control_policies import service_control_policies
 from datetime import datetime
 
 logging.disable(sys.maxsize)
@@ -23,7 +24,7 @@ META_FILE_NAME = "_meta.yaml"
 SEP = os.path.sep
 SSM_PARAMETER_PREFIX = "/_aws-organized/migrations"
 
-EXTENSION = 'aws_organized'
+EXTENSION = "aws_organized"
 
 
 def list_policies_for_target(organizations: client, id: str, filter) -> dict:
@@ -216,7 +217,9 @@ def import_organization(role_arn: str, root_id: str) -> None:
             f.write(yaml.safe_dump(account_details))
 
 
-def write_migration(extension: str, root_id:str, migration_type: str, migration_params: dict) -> None:
+def write_migration(
+    extension: str, root_id: str, migration_type: str, migration_params: dict
+) -> None:
     now = datetime.now()
     timestamp = datetime.timestamp(now)
     migration_file_name = f"{timestamp}_{migration_type}.yaml"
@@ -225,7 +228,7 @@ def write_migration(extension: str, root_id:str, migration_type: str, migration_
         exist_ok=True,
     )
     with open(
-            SEP.join(["environment", root_id, "_migrations", migration_file_name]), "w"
+        SEP.join(["environment", root_id, "_migrations", migration_file_name]), "w"
     ) as f:
         f.write(
             yaml.safe_dump(
@@ -445,14 +448,26 @@ def migrate(role_arn: str) -> None:
                 migration = yaml.safe_load(
                     open(f"environment/migrations/{migration_file}", "r").read()
                 )
+                migration_extension = migration.get("extension")
                 migration_type = migration.get("migration_type")
                 migration_params = migration.get("migration_params")
 
-                migration_function = migrations.get_function(migration_type)
+                if migration_extension == EXTENSION:
+                    migration_function = migrations.get_function(migration_type)
+                elif migration_extension == service_control_policies.EXTENSION:
+                    migration_function = (
+                        service_control_policies.migrations.get_function(migration_type)
+                    )
 
                 try:
-                    result = migration_function(role_arn=role_arn, **migration_params)
-                    status = "Ok" if result else "Failed"
+
+                    with betterboto_client.CrossAccountClientContextManager(
+                        "organizations",
+                        role_arn=role_arn,
+                        role_session_name="ou_create",
+                    ) as client:
+                        result = migration_function(client, **migration_params)
+                        status = "Ok" if result else "Failed"
                 except Exception as ex:
                     status = "Errored"
 

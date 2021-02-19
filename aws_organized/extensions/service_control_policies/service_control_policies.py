@@ -226,7 +226,9 @@ def check_policies(root_id: str, organizations) -> None:
             )
 
 
-def write_migration(extension: str, root_id: str, migration_type: str, migration_params: dict) -> None:
+def write_migration(
+    extension: str, root_id: str, migration_type: str, migration_params: dict
+) -> None:
     now = datetime.now()
     timestamp = datetime.timestamp(now)
     migration_file_name = f"{timestamp}_{migration_type}.yaml"
