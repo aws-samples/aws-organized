@@ -1,5 +1,7 @@
 from typing import Callable, Tuple
 import json
+import sys
+import botocore
 
 POLICY_ATTACH = "POLICY_ATTACH"
 POLICY_DETAILS_UPDATE = "POLICY_DETAILS_UPDATE"
