@@ -469,7 +469,7 @@ def migrate(role_arn: str) -> None:
                         result = migration_function(client, **migration_params)
                         status = "Ok" if result else "Failed"
                 except Exception as ex:
-                    status = "Errored"
+                    status = "Unhandled error: {0}".format(ex)
 
                 print(f"{migration_id}: { status }")
                 ssm.put_parameter(
