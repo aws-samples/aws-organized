@@ -194,11 +194,11 @@ def provision_migrate_role_stack(
 
 
 @cli.command()
-@click.option("--output-format", default="yaml")
 @click.option("--codepipeline-role-name", default="CodePipelineRole")
 @click.option("--codepipeline-role-path", default="/AWSOrganized/")
 @click.option("--codebuild-role-name", default="CodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
+@click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
 @click.option("--output_format", default="yaml")
 @click.argument("migrate-role-arn")
 def generate_codepipeline_template(
@@ -206,6 +206,7 @@ def generate_codepipeline_template(
     codepipeline_role_path: str,
     codebuild_role_name: str,
     codebuild_role_path: str,
+    ssm_parameter_prefix: str,
     output_format: str,
     migrate_role_arn: str,
 ):
@@ -215,6 +216,7 @@ def generate_codepipeline_template(
             codepipeline_role_path,
             codebuild_role_name,
             codebuild_role_path,
+            ssm_parameter_prefix,
             output_format.lower(),
             migrate_role_arn,
         )
@@ -222,11 +224,11 @@ def generate_codepipeline_template(
 
 
 @cli.command()
-@click.option("--output-format", default="yaml")
-@click.option("--codepipeline-role-name", default="CodePipelineRole")
+@click.option("--codepipeline-role-name", default="AWSOrganizedCodePipelineRole")
 @click.option("--codepipeline-role-path", default="/AWSOrganized/")
-@click.option("--codebuild-role-name", default="CodeBuildRole")
+@click.option("--codebuild-role-name", default="AWSOrganizedCodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
+@click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
 @click.option("--output-format", default="yaml")
 @click.argument("migrate-role-arn")
 def provision_codepipeline_stack(
@@ -234,6 +236,7 @@ def provision_codepipeline_stack(
     codepipeline_role_path: str,
     codebuild_role_name: str,
     codebuild_role_path: str,
+    ssm_parameter_prefix: str,
     output_format: str,
     migrate_role_arn: str,
 ):
@@ -242,6 +245,7 @@ def provision_codepipeline_stack(
         codepipeline_role_path,
         codebuild_role_name,
         codebuild_role_path,
+        ssm_parameter_prefix,
         output_format.lower(),
         migrate_role_arn,
     )

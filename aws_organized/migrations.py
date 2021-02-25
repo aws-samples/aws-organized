@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import sys
 from typing import Callable, Tuple
-from betterboto import client as betterboto_client
 import botocore
 
 OU_CREATE = "OU_CREATE"

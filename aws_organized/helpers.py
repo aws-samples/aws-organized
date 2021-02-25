@@ -4,13 +4,11 @@ from awacs import (
     organizations as awacs_organizations,
     aws,
     sts as awacs_sts,
-    s3 as awacs_s3,
-    logs as awacs_logs,
-    codebuild as awacs_codebuild,
-    codecommit as awscd_codecommit,
 )
+import pkg_resources
+
 from awacs.iam import ARN as IAM_ARN
-from troposphere import iam, s3, codebuild, codecommit, codepipeline
+from troposphere import iam, s3, codebuild, codecommit, codepipeline, ssm
 from betterboto import client as betterboto_client
 
 
@@ -180,7 +178,6 @@ def generate_migrate_role_template(
             awacs_organizations.CreateOrganizationalUnit,
             awacs_organizations.UpdateOrganizationalUnit,
             awacs_organizations.MoveAccount,
-
             awacs_organizations.CreatePolicy,
             awacs_organizations.UpdatePolicy,
             awacs_organizations.AttachPolicy,
@@ -215,9 +212,11 @@ def generate_codepipeline_template(
     codepipeline_role_path: str,
     codebuild_role_name: str,
     codebuild_role_path: str,
+    ssm_parameter_prefix: str,
     output_format: str,
     migrate_role_arn: str,
 ) -> str:
+    version = pkg_resources.get_distribution("aws-organized").version
     t = troposphere.Template()
     t.set_description(
         "CICD template that runs aws organized migrate for the given branch of the given repo"
@@ -289,6 +288,15 @@ def generate_codepipeline_template(
         )
     )
 
+    version_parameter = ssm.Parameter(
+        "versionparameter",
+        Name=f"{ssm_parameter_prefix}/version",
+        Type="String",
+        Value=version,
+    )
+
+    t.add_resource(version_parameter)
+
     project = t.add_resource(
         codebuild.Project(
             "AWSOrganizedMigrate",
@@ -302,7 +310,12 @@ def generate_codepipeline_template(
                         "Name": "MIGRATE_ROLE_ARN",
                         "Type": "PLAINTEXT",
                         "Value": migrate_role_arn,
-                    }
+                    },
+                    {
+                        "Name": "Version",
+                        "Type": "PARAMETER_STORE",
+                        "Value": troposphere.Ref(version_parameter),
+                    },
                 ],
             ),
             Name=project_name,
@@ -316,13 +329,12 @@ def generate_codepipeline_template(
                             install={
                                 "runtime-versions": dict(python="3.8"),
                                 "commands": [
-#                                    "pip install aws-organized",
-                                    "pip install git+https://github.com/aws-samples/aws-organized.git",
+                                    "pip install aws-organized==${Version}",
                                 ],
                             },
                             build={
                                 "commands": [
-                                    "aws-organized migrate $(MIGRATE_ROLE_ARN)",
+                                    "aws-organized migrate $MIGRATE_ROLE_ARN",
                                 ],
                             },
                         ),
@@ -403,6 +415,7 @@ def provision_codepipeline_stack(
     codepipeline_role_path: str,
     codebuild_role_name: str,
     codebuild_role_path: str,
+    ssm_parameter_prefix: str,
     output_format: str,
     migrate_role_arn: str,
 ) -> None:
@@ -411,6 +424,7 @@ def provision_codepipeline_stack(
         codepipeline_role_path,
         codebuild_role_name,
         codebuild_role_path,
+        ssm_parameter_prefix,
         output_format,
         migrate_role_arn,
     )
