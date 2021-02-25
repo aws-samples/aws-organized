@@ -18,7 +18,7 @@ include = ["aws_organized"]
 aws-organized = "aws_organized.cli:cli"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.7,<4"
 click = "^7.1.2"
 boto3 = "^1.16.4"
 better-boto = "0.36.0"
