@@ -12,6 +12,7 @@ import click
 import logging
 import sys
 from aws_organized import migrations
+from aws_organized.extensions.service_control_policies import service_control_policies
 from datetime import datetime
 
 logging.disable(sys.maxsize)
@@ -22,6 +23,8 @@ ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
 META_FILE_NAME = "_meta.yaml"
 SEP = os.path.sep
 SSM_PARAMETER_PREFIX = "/_aws-organized/migrations"
+
+EXTENSION = "aws_organized"
 
 
 def list_policies_for_target(organizations: client, id: str, filter) -> dict:
@@ -174,54 +177,63 @@ def write_organizational_units(unit: dict, output_dir: str) -> None:
         )
 
 
-def import_organization(role_arn) -> None:
+def import_organization(role_arn: str, root_id: str) -> None:
     update_state(role_arn)
     state = yaml.safe_load(open(STATE_FILE, "r").read())
     output_dir = "environment"
     organizational_units = state.get("organizational_units").get("tree")
     by_id = state.get("organizational_units").get("by_id")
 
-    for root_id, root in organizational_units.items():
-        write_organizational_units(
-            root,
-            output_dir,
-        )
+    root = organizational_units.get(root_id)
+    write_organizational_units(
+        root,
+        output_dir,
+    )
 
-        # TODO: partition the state file by org id
-        for account_id, account in state.get("accounts").items():
-            account_details = account.get("details")
-            parent_ou_id = account.get("parents")[0].get("Id")
-            parent_ou_path = by_id.get(parent_ou_id).get("path")
+    # TODO: partition the state file by org id
+    for account_id, account in state.get("accounts").items():
+        account_details = account.get("details")
+        parent_ou_id = account.get("parents")[0].get("Id")
+        parent_ou_path = by_id.get(parent_ou_id).get("path")
 
-            output_path_parts = [output_dir, root_id]
-            for parent in parent_ou_path.split("/"):
-                if parent != "":
-                    output_path_parts += [
-                        "_organizational_units",
-                        parent,
-                    ]
-            output_path_parts += [
-                "_accounts",
-                account_details.get("Name"),
-            ]
-            output_path = SEP.join(output_path_parts)
+        output_path_parts = [output_dir, root_id]
+        for parent in parent_ou_path.split("/"):
+            if parent != "":
+                output_path_parts += [
+                    "_organizational_units",
+                    parent,
+                ]
+        output_path_parts += [
+            "_accounts",
+            account_details.get("Name"),
+        ]
+        output_path = SEP.join(output_path_parts)
 
-            os.makedirs(output_path, exist_ok=True)
-            with open(
-                f"{output_path}{SEP}{META_FILE_NAME}",
-                "w",
-            ) as f:
-                f.write(yaml.safe_dump(account_details))
+        os.makedirs(output_path, exist_ok=True)
+        with open(
+            f"{output_path}{SEP}{META_FILE_NAME}",
+            "w",
+        ) as f:
+            f.write(yaml.safe_dump(account_details))
 
 
-def write_migration(migration_type: str, migration_params: dict) -> None:
+def write_migration(
+    extension: str, root_id: str, migration_type: str, migration_params: dict
+) -> None:
     now = datetime.now()
     timestamp = datetime.timestamp(now)
     migration_file_name = f"{timestamp}_{migration_type}.yaml"
-    with open(SEP.join(["environment", "migrations", migration_file_name]), "w") as f:
+    os.makedirs(
+        SEP.join(["environment", root_id, "_migrations"]),
+        exist_ok=True,
+    )
+    with open(
+        SEP.join(["environment", root_id, "_migrations", migration_file_name]), "w"
+    ) as f:
         f.write(
             yaml.safe_dump(
                 dict(
+                    extension=extension,
                     migration_type=migration_type,
                     migration_params=migration_params,
                 )
@@ -229,18 +241,18 @@ def write_migration(migration_type: str, migration_params: dict) -> None:
         )
 
 
-def make_migrations(role_arn) -> None:
+def make_migrations(role_arn: str, root_id: str) -> None:
     os.makedirs(SEP.join(["environment", "migrations"]), exist_ok=True)
     with betterboto_client.CrossAccountClientContextManager(
         "organizations",
         role_arn,
         f"organizations",
     ) as organizations:
-        make_migrations_for_organizational_units(organizations)
-        make_migrations_for_accounts(organizations)
+        make_migrations_for_organizational_units(root_id, organizations)
+        make_migrations_for_accounts(root_id, organizations)
 
 
-def make_migrations_for_accounts(organizations) -> None:
+def make_migrations_for_accounts(root_id: str, organizations) -> None:
     """
     Creates migrations for the following account use cases:
       - move an account
@@ -281,6 +293,8 @@ def make_migrations_for_accounts(organizations) -> None:
                 != remote_parent_organizational_unit_ou_id
             ):
                 write_migration(
+                    EXTENSION,
+                    root_id,
                     migrations.ACCOUNT_MOVE,
                     dict(
                         account_id=account_details.get("Id"),
@@ -293,6 +307,8 @@ def make_migrations_for_accounts(organizations) -> None:
                 [""] + parent_ou_path_details_file_path.split(SEP)[3:-1]
             ).replace(f"{SEP}_organizational_units", "")
             write_migration(
+                EXTENSION,
+                root_id,
                 migrations.ACCOUNT_MOVE_WITH_NON_EXISTENT_PARENT_OU,
                 dict(
                     account_id=account_details.get("Id"),
@@ -313,7 +329,7 @@ def get_parent_ou_id_for_details_file(details_file_path: str) -> str:
     return None
 
 
-def make_migrations_for_organizational_units(organizations) -> None:
+def make_migrations_for_organizational_units(organizations, root_id: str) -> None:
     """
     Creates migrations for the following OU use cases:
       - add an ou
@@ -355,6 +371,8 @@ def make_migrations_for_organizational_units(organizations) -> None:
             local_name = organizational_unit_folder.split(SEP)[-1]
             if remote_name != local_name:
                 write_migration(
+                    EXTENSION,
+                    root_id,
                     migrations.OU_RENAME,
                     dict(
                         name=local_name,
@@ -377,6 +395,8 @@ def make_migrations_for_organizational_units(organizations) -> None:
                     ).read()
                 ).get("Id")
                 write_migration(
+                    EXTENSION,
+                    root_id,
                     migrations.OU_CREATE,
                     dict(name=new_ou_name, parent_id=parent_id),
                 )
@@ -390,6 +410,8 @@ def make_migrations_for_organizational_units(organizations) -> None:
                     .split(SEP)[2:]
                 )
                 write_migration(
+                    EXTENSION,
+                    root_id,
                     migrations.OU_CREATE_WITH_NON_EXISTENT_PARENT_OU,
                     dict(name=new_ou_name, parent_ou_path=parent_ou_path),
                 )
@@ -426,16 +448,28 @@ def migrate(role_arn: str) -> None:
                 migration = yaml.safe_load(
                     open(f"environment/migrations/{migration_file}", "r").read()
                 )
+                migration_extension = migration.get("extension")
                 migration_type = migration.get("migration_type")
                 migration_params = migration.get("migration_params")
 
-                migration_function = migrations.get_function(migration_type)
+                if migration_extension == EXTENSION:
+                    migration_function = migrations.get_function(migration_type)
+                elif migration_extension == service_control_policies.EXTENSION:
+                    migration_function = (
+                        service_control_policies.migrations.get_function(migration_type)
+                    )
 
                 try:
-                    result = migration_function(role_arn=role_arn, **migration_params)
-                    status = "Ok" if result else "Failed"
+
+                    with betterboto_client.CrossAccountClientContextManager(
+                        "organizations",
+                        role_arn=role_arn,
+                        role_session_name="ou_create",
+                    ) as client:
+                        result = migration_function(client, **migration_params)
+                        status = "Ok" if result else "Failed"
                 except Exception as ex:
-                    status = "Errored"
+                    status = "Unhandled error: {0}".format(ex)
 
                 print(f"{migration_id}: { status }")
                 ssm.put_parameter(

@@ -1,10 +1,12 @@
 # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import os
 
 import click
 
 from aws_organized import helpers
 from aws_organized import aws_organized
+from aws_organized.extensions.service_control_policies import service_control_policies
 
 
 @click.group()
@@ -15,8 +17,25 @@ def cli():
 
 @cli.command()
 @click.argument("role_arn")
+def make_migration_policies(role_arn) -> None:
+    service_control_policies.make_migration_policies(role_arn)
+
+
+@cli.command()
+@click.argument("role_arn")
+def apply_migration_policies(role_arn) -> None:
+    service_control_policies.apply_migration_policies(role_arn)
+
+
+@cli.command()
+@click.argument("role_arn")
 def import_organization(role_arn):
-    aws_organized.import_organization(role_arn)
+    for root_id in os.listdir("environment"):
+        if root_id in ["migrations", "Policies", "policies_migration"]:
+            continue
+        click.echo(f"Processing root_id: {root_id}")
+        aws_organized.import_organization(role_arn, root_id)
+        service_control_policies.import_organization_policies(role_arn, root_id)
 
 
 @cli.command()
@@ -68,7 +87,12 @@ def provision_import_organization_role_stack(
 @cli.command()
 @click.argument("role_arn")
 def make_migrations(role_arn):
-    aws_organized.make_migrations(role_arn)
+    for root_id in os.listdir("environment"):
+        if root_id in ["migrations", "Policies", "policies_migration"]:
+            continue
+        click.echo(f"Processing root_id: {root_id}")
+        aws_organized.make_migrations(role_arn, root_id)
+        service_control_policies.make_migrations(role_arn, root_id)
 
 
 @cli.command()
@@ -211,7 +235,7 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     output_format: str,
-        migrate_role_arn: str,
+    migrate_role_arn: str,
 ):
     helpers.provision_codepipeline_stack(
         codepipeline_role_name,

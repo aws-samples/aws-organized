@@ -87,6 +87,9 @@ def generate_import_organization_role_template(
             awacs_organizations.ListChildren,
             awacs_organizations.DescribeOrganizationalUnit,
             awacs_organizations.ListParents,
+            awacs_organizations.ListPolicies,
+            awacs_organizations.DescribePolicy,
+            awacs_organizations.ListTargetsForPolicy,
         ],
         role_name,
         path,
@@ -136,6 +139,8 @@ def generate_make_migrations_role_template(
         [
             awacs_organizations.DescribeOrganizationalUnit,
             awacs_organizations.ListParents,
+            awacs_organizations.DescribePolicy,
+            awacs_organizations.ListPoliciesForTarget,
         ],
         role_name,
         path,
@@ -175,6 +180,10 @@ def generate_migrate_role_template(
             awacs_organizations.CreateOrganizationalUnit,
             awacs_organizations.UpdateOrganizationalUnit,
             awacs_organizations.MoveAccount,
+
+            awacs_organizations.CreatePolicy,
+            awacs_organizations.UpdatePolicy,
+            awacs_organizations.AttachPolicy,
         ],
         role_name,
         path,
@@ -244,89 +253,6 @@ def generate_codepipeline_template(
             ManagedPolicyArns=[
                 "arn:aws:iam::aws:policy/AdministratorAccess",
             ],
-            Policies=[
-                iam.Policy(
-                    PolicyName=f"executionpermissions",
-                    PolicyDocument=aws.PolicyDocument(
-                        Version="2012-10-17",
-                        Id=f"executionpermissions",
-                        Statement=[
-                            aws.Statement(
-                                Sid="1",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awscd_codecommit.GitPull,
-                                    awscd_codecommit.GetBranch,
-                                    awscd_codecommit.GetCommit,
-                                    awscd_codecommit.UploadArchive,
-                                ],
-                                Resource=[troposphere.GetAtt(repo, "Arn")],
-                            ),
-                            aws.Statement(
-                                Sid="2",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_s3.GetBucketPolicy,
-                                    awacs_s3.GetBucketVersioning,
-                                    awacs_s3.ListBucket,
-                                ],
-                                Resource=[troposphere.GetAtt(artifact_store, "Arn")],
-                            ),
-                            aws.Statement(
-                                Sid="3",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_s3.GetObject,
-                                    awacs_s3.GetObjectVersion,
-                                ],
-                                Resource=[
-                                    troposphere.Join(":", [
-                                        troposphere.GetAtt(artifact_store, 'Arn'),
-                                        "*"
-                                    ])
-                                ],
-                            ),
-                            aws.Statement(
-                                Sid="4",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_s3.ListAllMyBuckets,
-                                ],
-                                Resource=[
-                                    troposphere.Join(":", [
-                                        "arn",
-                                        troposphere.Partition,
-                                        "s3:::*",
-                                    ])
-                                ],
-                            ),
-                            # aws.Statement(
-                            #     Sid="5",
-                            #     Effect=aws.Allow,
-                            #     Action=[
-                            #         aws.Action("s3", "*")
-                            #     ],
-                            #     Resource=[
-                            #         troposphere.Join(":", [
-                            #             troposphere.GetAtt(artifact_store, 'Arn'),
-                            #             "*"
-                            #         ])
-                            #     ],
-                            # ),
-                            # aws.Statement(
-                            #     Sid="6",
-                            #     Effect=aws.Allow,
-                            #     Action=[
-                            #         aws.Action("s3", "*")
-                            #     ],
-                            #     Resource=[
-                            #         troposphere.GetAtt(artifact_store, 'Arn')
-                            #     ],
-                            # ),
-                        ],
-                    ),
-                )
-            ],
             AssumeRolePolicyDocument=aws.PolicyDocument(
                 Version="2012-10-17",
                 Statement=[
@@ -349,115 +275,6 @@ def generate_codepipeline_template(
             Path=codebuild_role_path,
             ManagedPolicyArns=[
                 "arn:aws:iam::aws:policy/AdministratorAccess",
-            ],
-            Policies=[
-                iam.Policy(
-                    PolicyName=f"executionpermissions",
-                    PolicyDocument=aws.PolicyDocument(
-                        Version="2012-10-17",
-                        Id=f"executionpermissions",
-                        Statement=[
-                            aws.Statement(
-                                Sid="1",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_logs.CreateLogGroup,
-                                    awacs_logs.CreateLogStream,
-                                    awacs_logs.PutLogEvents,
-                                ],
-                                Resource=[
-                                    # "arn:aws:logs:eu-west-1:669925765091:log-group:/aws/codebuild/examplecodebuild",
-                                    # "arn:aws:logs:eu-west-1:669925765091:log-group:/aws/codebuild/examplecodebuild:*",
-                                    {
-                                        "Fn::Sub": [
-                                            f"arn:${{AWS::Partition}}:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/codebuild/{project_name}",
-                                            {},
-                                        ]
-                                    },
-                                    {
-                                        "Fn::Sub": [
-                                            f"arn:${{AWS::Partition}}:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/codebuild/{project_name}:*",
-                                            {},
-                                        ]
-                                    },
-                                ],
-                            ),
-                            aws.Statement(
-                                Sid="2",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_s3.PutObject,
-                                    awacs_s3.GetObject,
-                                    awacs_s3.GetObjectVersion,
-                                    awacs_s3.GetBucketAcl,
-                                    awacs_s3.GetBucketLocation,
-                                ],
-                                Resource=[
-                                    # "arn:aws:s3:::codepipeline-eu-west-1-*",
-                                    {
-                                        "Fn::Sub": [
-                                            f"arn:${{AWS::Partition}}:s3:::codepipeline-${{AWS::Region}}-*",
-                                            {},
-                                        ]
-                                    },
-                                ],
-                            ),
-                            aws.Statement(
-                                Sid="3",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_codebuild.CreateReportGroup,
-                                    awacs_codebuild.CreateReport,
-                                    awacs_codebuild.UpdateReport,
-                                    awacs_codebuild.BatchPutTestCases,
-                                    awacs_codebuild.BatchPutCodeCoverages,
-                                ],
-                                Resource=[
-                                    # "arn:aws:codebuild:eu-west-1:669925765091:report-group/examplecodebuild-*",
-                                    {
-                                        "Fn::Sub": [
-                                            f"arn:${{AWS::Partition}}:codebuild:${{AWS::Region}}:${{AWS::AccountId}}:report-group/{project_name}-*",
-                                            {},
-                                        ]
-                                    },
-                                ],
-                            ),
-                            aws.Statement(
-                                Sid="4",
-                                Effect=aws.Allow,
-                                Action=[
-                                    awacs_sts.AssumeRole
-                                ],
-                                Resource=[
-                                    migrate_role_arn
-                                ]
-                            ),
-                            # aws.Statement(
-                            #     Sid="5",
-                            #     Effect=aws.Allow,
-                            #     Action=[
-                            #         aws.Action("s3", "*")
-                            #     ],
-                            #     Resource=[
-                            #         troposphere.Join(":", [
-                            #             troposphere.GetAtt(artifact_store, 'Arn'),
-                            #             "*"
-                            #         ])
-                            #     ],
-                            # ),
-                            # aws.Statement(
-                            #     Sid="6",
-                            #     Effect=aws.Allow,
-                            #     Action=[
-                            #         aws.Action("s3", "*")
-                            #     ],
-                            #     Resource=[
-                            #         troposphere.GetAtt(artifact_store, 'Arn')
-                            #     ],
-                            # ),
-                        ],
-                    ),
-                )
             ],
             AssumeRolePolicyDocument=aws.PolicyDocument(
                 Version="2012-10-17",
@@ -486,7 +303,7 @@ def generate_codepipeline_template(
                         "Type": "PLAINTEXT",
                         "Value": migrate_role_arn,
                     }
-                ]
+                ],
             ),
             Name=project_name,
             ServiceRole=troposphere.GetAtt(codebuild_role, "Arn"),
@@ -530,13 +347,13 @@ def generate_codepipeline_template(
         OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
         Configuration={
             "RepositoryName": repository_name,
-            "BranchName": "master",
+            "BranchName": "main",
             "PollForSourceChanges": "true",
         },
         RunOrder="1",
     )
 
-    pipeline = t.add_resource(
+    t.add_resource(
         codepipeline.Pipeline(
             "Pipeline",
             RoleArn=troposphere.GetAtt(codepipeline_role, "Arn"),
@@ -586,7 +403,7 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     output_format: str,
-        migrate_role_arn: str,
+    migrate_role_arn: str,
 ) -> None:
     template = generate_codepipeline_template(
         codepipeline_role_name,
@@ -596,5 +413,4 @@ def provision_codepipeline_stack(
         output_format,
         migrate_role_arn,
     )
-    print(template)
     provision_stack("codepipeline", template)

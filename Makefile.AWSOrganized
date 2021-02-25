@@ -3,9 +3,10 @@
 
 .PHONY: import-organization make-migrations migrate clean
 
-ORG_MANAGEMENT_ACCOUNT_ID=170232108581
+CICD_ACCOUNT_ID="156551640785"
+ORG_MANAGEMENT_ACCOUNT_ID=156551640785
+
 IMPORT_ROLE_ARN="arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/ImportOrganizationRole"
-CICD_ACCOUNT_ID="105463962595"
 MIGRATE_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MigrateRole"
 MAKE_MIGRATIONS_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MakeMigrationsRole"
 
