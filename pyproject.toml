@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [tool.poetry]
-name = "aws_organized"
+name = "aws-organized"
 version = "0.0.1"
 description = ""
-authors = ["Eamonn Faherty <eamonnf@amazon.co.uk>"]
+authors = [
+    "Eamonn Faherty <eamonnf@amazon.co.uk>",
+    "Zulia Shavaeva <zulis@amazon.co.uk>"
+]
 packages = [
     { include = "aws_organized", from = "." },
 ]

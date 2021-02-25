@@ -316,7 +316,8 @@ def generate_codepipeline_template(
                             install={
                                 "runtime-versions": dict(python="3.8"),
                                 "commands": [
-                                    "pip install aws-organized",
+#                                    "pip install aws-organized",
+                                    "pip install git+https://github.com/aws-samples/aws-organized.git",
                                 ],
                             },
                             build={

@@ -5,3 +5,4 @@ state.yaml
 .venv
 .DS_Store
 ignored
+dist

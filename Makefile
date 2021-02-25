@@ -8,6 +8,7 @@
 include Makefile.CodeQuality
 include Makefile.AWSOrganized
 include Makefile.CI
+include Makefile.Project
 
 help: help-prefix help-targets
 
