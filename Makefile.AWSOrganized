@@ -42,6 +42,3 @@ generate-codepipeline-template:
 
 provision-codepipeline-stack:
 	poetry run aws-organized provision-codepipeline-stack $(MIGRATE_ROLE_ARN)
-
-clean:
-	rm -rf environment

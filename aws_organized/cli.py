@@ -195,9 +195,9 @@ def provision_migrate_role_stack(
 
 @cli.command()
 @click.option("--output-format", default="yaml")
-@click.option("--codepipeline-role-name", default="CodePipelineRole2")
+@click.option("--codepipeline-role-name", default="CodePipelineRole")
 @click.option("--codepipeline-role-path", default="/AWSOrganized/")
-@click.option("--codebuild-role-name", default="CodeBuildRole2")
+@click.option("--codebuild-role-name", default="CodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
 @click.option("--output_format", default="yaml")
 @click.argument("migrate-role-arn")
@@ -223,9 +223,9 @@ def generate_codepipeline_template(
 
 @cli.command()
 @click.option("--output-format", default="yaml")
-@click.option("--codepipeline-role-name", default="CodePipelineRole2")
+@click.option("--codepipeline-role-name", default="CodePipelineRole")
 @click.option("--codepipeline-role-path", default="/AWSOrganized/")
-@click.option("--codebuild-role-name", default="CodeBuildRole2")
+@click.option("--codebuild-role-name", default="CodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
 @click.option("--output-format", default="yaml")
 @click.argument("migrate-role-arn")
