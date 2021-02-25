@@ -11,8 +11,8 @@ import yaml
 import click
 import logging
 import sys
-from . import migrations
-from extensions.service_control_policies import service_control_policies
+from aws_organized import migrations
+from aws_organized.extensions.service_control_policies import service_control_policies
 from datetime import datetime
 
 logging.disable(sys.maxsize)
