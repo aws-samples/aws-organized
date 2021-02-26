@@ -3,7 +3,7 @@
 
 [tool.poetry]
 name = "aws-organized"
-version = "0.0.2"
+version = "0.0.3"
 description = "Manage your AWS Organizations infrastructure using a simple file system based approach.  You create files and folders that correspond to AWS Organizations organizational units and accounts and this tooling manages changes for you."
 classifiers = ["Development Status :: 5 - Production/Stable", "Intended Audience :: Developers", "Programming Language :: Python :: 3", "License :: OSI Approved :: Apache Software License", "Operating System :: OS Independent", "Natural Language :: English"]
 homepage = "https://github.com/aws-samples/aws-organized"

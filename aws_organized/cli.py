@@ -7,6 +7,7 @@ import click
 from aws_organized import helpers
 from aws_organized import aws_organized
 from aws_organized.extensions.service_control_policies import service_control_policies
+from betterboto import client as betterboto_client
 
 
 @click.group()
@@ -30,6 +31,13 @@ def apply_migration_policies(role_arn) -> None:
 @cli.command()
 @click.argument("role_arn")
 def import_organization(role_arn):
+    with betterboto_client.CrossAccountClientContextManager(
+            "organizations",
+            role_arn,
+            f"organizations",
+    ) as organizations:
+        for root in organizations.list_roots_single_page().get("Roots", []):
+            os.makedirs(f"environment/{root.get('Id')}", exist_ok=True)
     for root_id in os.listdir("environment"):
         if root_id in ["migrations", "Policies", "policies_migration"]:
             continue
