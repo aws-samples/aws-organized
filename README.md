@@ -248,6 +248,25 @@ Name: OnlyS3
 Type: SERVICE_CONTROL_POLICY
 ```
 
+### Generating migrations
+Once you have made your changes you can then run `aws-organized make-migrations <make-migrations-role-arn>` where
+make-migrations-role-arn is the Arn of the role created in the steps above.
+
+This creates a _migrations directory in your environment/organization direction.  Within the _migrations directory
+there should be a file describing the change you want to make.
+
+### Applying migrations
+Once you have made your migrations you will want to review them - they are human (ish) readable YAML documents that
+describe the change you are applying.  Once you are happy with them you will want to run them.
+
+#### Running migrations in a pipeline (recommended)
+Once you have your migrations you add them to the git repository created in the create pipeline step above.  The default
+name for the git repo is `AWS-Organized-environment`
+
+#### Running migrations locally (not recommended)
+Once you have your migrations you can then run `aws-organized migrate <migrate-role-arn>` where
+migrate-role-arn is the Arn of the role created in the steps above.
+
 
 ## Security
 
