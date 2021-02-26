@@ -247,12 +247,12 @@ def make_migrations(role_arn: str, root_id: str) -> None:
         "organizations",
         role_arn,
         f"organizations",
-    ) as organizations:
-        make_migrations_for_organizational_units(root_id, organizations)
-        make_migrations_for_accounts(root_id, organizations)
+    ) as orgs_client:
+        make_migrations_for_organizational_units(orgs_client, root_id)
+        make_migrations_for_accounts(orgs_client, root_id)
 
 
-def make_migrations_for_accounts(root_id: str, organizations) -> None:
+def make_migrations_for_accounts(organizations, root_id: str) -> None:
     """
     Creates migrations for the following account use cases:
       - move an account

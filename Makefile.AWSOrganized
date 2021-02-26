@@ -29,7 +29,7 @@ provision-make-migrations-role-stack:
 	poetry run aws-organized provision-make-migrations-role-stack $(CICD_ACCOUNT_ID)
 
 migrate:
-	poetry run aws-organized migrate $(ROLE_ARN)
+	poetry run aws-organized migrate $(MIGRATE_ROLE_ARN)
 
 generate-migrate-role-template:
 	poetry run aws-organized generate-migrate-role-template $$(aws sts get-caller-identity --query Account --output text)

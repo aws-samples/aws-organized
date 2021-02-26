@@ -49,7 +49,7 @@ to view or provision the template or stack.
 To preview the template you can run:
 
 ```shell script
-aws-organized generate-import-organization-role-stack <organized_account_id>
+aws-organized generate-import-organization-role-template <organized_account_id>
 ```
 
 To provision the stack you can run:
@@ -72,7 +72,7 @@ aws-organized generate-make-migrations-role-template <organized_account_id>
 To provision the stack you can run:
 
 ```shell script
-aws-organized provision-make-migrations-role-template <organized_account_id>
+aws-organized provision-make-migrations-role-stack <organized_account_id>
 ```
 
 
@@ -90,7 +90,7 @@ aws-organized generate-migrate-role-template <organized_account_id>
 To provision the stack you can run:
 
 ```shell script
-aws-organized provision-migrate-role-template <organized_account_id>
+aws-organized provision-migrate-role-stack <organized_account_id>
 ```
 
 
@@ -110,7 +110,7 @@ aws-organized generate-codepipeline-template <organized_account_id>
 To provision the stack you can run:
 
 ```shell script
-aws-organized provision-codepipeline-template <organized_account_id>
+aws-organized provision-codepipeline-stack <organized_account_id>
 ```
 
 
@@ -118,7 +118,7 @@ aws-organized provision-codepipeline-template <organized_account_id>
 Before you can make changes you need to run:
 
 ```shell script
-aws-organized provision-codepipeline-template <import-organization-role>
+aws-organized import-organization <import-organization-role>
 ```
 
 where `import-organization-role` is the role created by the `provision-import-organization-role-stack` command
