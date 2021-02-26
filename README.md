@@ -115,6 +115,14 @@ aws-organized provision-codepipeline-template <organized_account_id>
 
 
 ### Making changes to your Org
+Before you can make changes you need to run:
+
+```shell script
+aws-organized provision-codepipeline-template <import-organization-role>
+```
+
+where `import-organization-role` is the role created by the `provision-import-organization-role-stack` command
+
 Once you run the import-organization command you have a directory created containing the accounts, OUs and SCPs defined:
 
 ```shell script

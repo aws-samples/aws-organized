@@ -19,54 +19,52 @@ def generate_role_template(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> str:
+) -> troposphere.Template:
     t = troposphere.Template()
     t.description = f"Role used to run the {command} command"
 
-    t.add_resource(
-        iam.Role(
-            title="role",
-            RoleName=role_name,
-            Path=path,
-            Policies=[
-                iam.Policy(
-                    PolicyName=f"{command}-permissions",
-                    PolicyDocument=aws.PolicyDocument(
-                        Version="2012-10-17",
-                        Id=f"{command}-permissions",
-                        Statement=[
-                            aws.Statement(
-                                Sid="1",
-                                Effect=aws.Allow,
-                                Action=actions,
-                                Resource=["*"],
-                            ),
-                        ],
-                    ),
-                )
-            ],
-            AssumeRolePolicyDocument=aws.Policy(
-                Version="2012-10-17",
-                Id="AllowAssume",
-                Statement=[
-                    aws.Statement(
-                        Sid="1",
-                        Effect=aws.Allow,
-                        Principal=aws.Principal(
-                            "AWS", [IAM_ARN(assuming_resource, "", assuming_account_id)]
+    role = iam.Role(
+        title="role",
+        RoleName=role_name,
+        Path=path,
+        Policies=[
+            iam.Policy(
+                PolicyName=f"{command}-permissions",
+                PolicyDocument=aws.PolicyDocument(
+                    Version="2012-10-17",
+                    Id=f"{command}-permissions",
+                    Statement=[
+                        aws.Statement(
+                            Sid="1",
+                            Effect=aws.Allow,
+                            Action=actions,
+                            Resource=["*"],
                         ),
-                        Action=[awacs_sts.AssumeRole],
+                    ],
+                ),
+            )
+        ],
+        AssumeRolePolicyDocument=aws.Policy(
+            Version="2012-10-17",
+            Id="AllowAssume",
+            Statement=[
+                aws.Statement(
+                    Sid="1",
+                    Effect=aws.Allow,
+                    Principal=aws.Principal(
+                        "AWS", [IAM_ARN(assuming_resource, "", assuming_account_id)]
                     ),
-                ],
-            ),
-        )
+                    Action=[awacs_sts.AssumeRole],
+                ),
+            ],
+        ),
     )
+    t.add_resource(role)
 
-    if output_format == "json":
-        return t.to_json()
-    else:
-        return t.to_yaml()
+    t.add_output(troposphere.Output("RoleName", Value=troposphere.Ref(role)))
+    t.add_output(troposphere.Output("RoleArn", Value=troposphere.GetAtt(role, "Arn")))
+
+    return t
 
 
 def generate_import_organization_role_template(
@@ -74,8 +72,7 @@ def generate_import_organization_role_template(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> str:
+) -> troposphere.Template:
     return generate_role_template(
         "import-organizations",
         [
@@ -93,17 +90,16 @@ def generate_import_organization_role_template(
         path,
         assuming_account_id,
         assuming_resource,
-        output_format,
     )
 
 
-def provision_stack(stack_name_suffix: str, template: str) -> None:
+def provision_stack(stack_name_suffix: str, template: troposphere.Template) -> None:
     with betterboto_client.ClientContextManager(
         "cloudformation",
     ) as cloudformation:
         cloudformation.create_or_update(
             StackName=f"AWSOrganized-{stack_name_suffix}",
-            TemplateBody=template,
+            TemplateBody=template.to_yaml(),
             Capabilities=["CAPABILITY_NAMED_IAM"],
         )
 
@@ -113,16 +109,15 @@ def provision_import_organization_role_stack(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> None:
+) -> troposphere.Template:
     template = generate_import_organization_role_template(
         role_name,
         path,
         assuming_account_id,
         assuming_resource,
-        output_format,
     )
     provision_stack("import-organization-role", template)
+    return template
 
 
 def generate_make_migrations_role_template(
@@ -130,8 +125,7 @@ def generate_make_migrations_role_template(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> str:
+) -> troposphere.Template:
     return generate_role_template(
         "make-migrations",
         [
@@ -144,7 +138,6 @@ def generate_make_migrations_role_template(
         path,
         assuming_account_id,
         assuming_resource,
-        output_format,
     )
 
 
@@ -153,16 +146,15 @@ def provision_make_migrations_role_stack(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> None:
+) -> troposphere.Template:
     template = generate_make_migrations_role_template(
         role_name,
         path,
         assuming_account_id,
         assuming_resource,
-        output_format,
     )
     provision_stack("make-migrations-role", template)
+    return template
 
 
 def generate_migrate_role_template(
@@ -170,8 +162,7 @@ def generate_migrate_role_template(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> str:
+) -> troposphere.Template:
     return generate_role_template(
         "migrate",
         [
@@ -186,7 +177,6 @@ def generate_migrate_role_template(
         path,
         assuming_account_id,
         assuming_resource,
-        output_format,
     )
 
 
@@ -195,16 +185,15 @@ def provision_migrate_role_stack(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
-    output_format: str,
-) -> None:
+) -> troposphere.Template:
     template = generate_migrate_role_template(
         role_name,
         path,
         assuming_account_id,
         assuming_resource,
-        output_format,
     )
     provision_stack("migrate-role", template)
+    return template
 
 
 def generate_codepipeline_template(
@@ -213,9 +202,8 @@ def generate_codepipeline_template(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
-    output_format: str,
     migrate_role_arn: str,
-) -> str:
+) -> troposphere.Template:
     version = pkg_resources.get_distribution("aws-organized").version
     t = troposphere.Template()
     t.set_description(
@@ -404,10 +392,7 @@ def generate_codepipeline_template(
         )
     )
 
-    if output_format == "json":
-        return t.to_json()
-    else:
-        return t.to_yaml()
+    return t
 
 
 def provision_codepipeline_stack(
@@ -416,16 +401,15 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
-    output_format: str,
     migrate_role_arn: str,
-) -> None:
+) -> troposphere.Template:
     template = generate_codepipeline_template(
         codepipeline_role_name,
         codepipeline_role_path,
         codebuild_role_name,
         codebuild_role_path,
         ssm_parameter_prefix,
-        output_format,
         migrate_role_arn,
     )
     provision_stack("codepipeline", template)
+    return template

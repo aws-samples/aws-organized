@@ -32,9 +32,9 @@ def apply_migration_policies(role_arn) -> None:
 @click.argument("role_arn")
 def import_organization(role_arn):
     with betterboto_client.CrossAccountClientContextManager(
-            "organizations",
-            role_arn,
-            f"organizations",
+        "organizations",
+        role_arn,
+        f"organizations",
     ) as organizations:
         for root in organizations.list_roots_single_page().get("Roots", []):
             os.makedirs(f"environment/{root.get('Id')}", exist_ok=True)
@@ -59,28 +59,28 @@ def generate_import_organization_role_template(
     output_format: str,
     assuming_account_id: str,
 ):
-    click.echo(
-        helpers.generate_import_organization_role_template(
-            role_name,
-            path,
-            assuming_account_id,
-            assuming_resource,
-            output_format.lower(),
-        )
+    t = helpers.generate_import_organization_role_template(
+        role_name,
+        path,
+        assuming_account_id,
+        assuming_resource,
     )
+
+    if output_format.lower() == "json":
+        click.echo(t.to_json())
+    else:
+        click.echo(t.to_yaml())
 
 
 @cli.command()
 @click.option("--role-name", default="ImportOrganizationRole")
 @click.option("--path", default="/AWSOrganized/")
 @click.option("--assuming-resource", default="root")
-@click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
 def provision_import_organization_role_stack(
     role_name: str,
     path: str,
     assuming_resource: str,
-    output_format: str,
     assuming_account_id: str,
 ):
     helpers.provision_import_organization_role_stack(
@@ -88,7 +88,6 @@ def provision_import_organization_role_stack(
         path,
         assuming_account_id,
         assuming_resource,
-        output_format.lower(),
     )
 
 
@@ -116,28 +115,28 @@ def generate_make_migrations_role_template(
     output_format: str,
     assuming_account_id: str,
 ):
-    click.echo(
-        helpers.generate_make_migrations_role_template(
-            role_name,
-            path,
-            assuming_account_id,
-            assuming_resource,
-            output_format.lower(),
-        )
+    t = helpers.generate_make_migrations_role_template(
+        role_name,
+        path,
+        assuming_account_id,
+        assuming_resource,
     )
+
+    if output_format.lower() == "json":
+        click.echo(t.to_json())
+    else:
+        click.echo(t.to_yaml())
 
 
 @cli.command()
 @click.option("--role-name", default="MakeMigrationsRole")
 @click.option("--path", default="/AWSOrganized/")
 @click.option("--assuming-resource", default="root")
-@click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
 def provision_make_migrations_role_stack(
     role_name: str,
     path: str,
     assuming_resource: str,
-    output_format: str,
     assuming_account_id: str,
 ):
     helpers.provision_make_migrations_role_stack(
@@ -145,7 +144,6 @@ def provision_make_migrations_role_stack(
         path,
         assuming_account_id,
         assuming_resource,
-        output_format.lower(),
     )
 
 
@@ -168,28 +166,27 @@ def generate_migrate_role_template(
     output_format: str,
     assuming_account_id: str,
 ):
-    click.echo(
-        helpers.generate_migrate_role_template(
-            role_name,
-            path,
-            assuming_account_id,
-            assuming_resource,
-            output_format.lower(),
-        )
+    t = helpers.generate_migrate_role_template(
+        role_name,
+        path,
+        assuming_account_id,
+        assuming_resource,
     )
+    if output_format.lower() == "json":
+        click.echo(t.to_json())
+    else:
+        click.echo(t.to_yaml())
 
 
 @cli.command()
 @click.option("--role-name", default="MigrateRole")
 @click.option("--path", default="/AWSOrganized/")
 @click.option("--assuming-resource", default="root")
-@click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
 def provision_migrate_role_stack(
     role_name: str,
     path: str,
     assuming_resource: str,
-    output_format: str,
     assuming_account_id: str,
 ):
     helpers.provision_migrate_role_stack(
@@ -197,7 +194,6 @@ def provision_migrate_role_stack(
         path,
         assuming_account_id,
         assuming_resource,
-        output_format.lower(),
     )
 
 
@@ -218,17 +214,18 @@ def generate_codepipeline_template(
     output_format: str,
     migrate_role_arn: str,
 ):
-    click.echo(
-        helpers.generate_codepipeline_template(
-            codepipeline_role_name,
-            codepipeline_role_path,
-            codebuild_role_name,
-            codebuild_role_path,
-            ssm_parameter_prefix,
-            output_format.lower(),
-            migrate_role_arn,
-        )
+    t = helpers.generate_codepipeline_template(
+        codepipeline_role_name,
+        codepipeline_role_path,
+        codebuild_role_name,
+        codebuild_role_path,
+        ssm_parameter_prefix,
+        migrate_role_arn,
     )
+    if output_format.lower() == "json":
+        click.echo(t.to_json())
+    else:
+        click.echo(t.to_yaml())
 
 
 @cli.command()
@@ -237,7 +234,6 @@ def generate_codepipeline_template(
 @click.option("--codebuild-role-name", default="AWSOrganizedCodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
 @click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
-@click.option("--output-format", default="yaml")
 @click.argument("migrate-role-arn")
 def provision_codepipeline_stack(
     codepipeline_role_name: str,
@@ -245,7 +241,6 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
-    output_format: str,
     migrate_role_arn: str,
 ):
     helpers.provision_codepipeline_stack(
@@ -254,7 +249,6 @@ def provision_codepipeline_stack(
         codebuild_role_name,
         codebuild_role_path,
         ssm_parameter_prefix,
-        output_format.lower(),
         migrate_role_arn,
     )
 
