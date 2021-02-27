@@ -148,21 +148,25 @@ def provision_make_migrations_role_stack(
 
 
 @cli.command()
+@click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
 @click.argument("role_arn")
-def migrate(role_arn):
-    aws_organized.migrate(role_arn)
+def migrate(ssm_parameter_prefix: str, role_arn: str):
+    for root_id in os.listdir("environment"):
+        aws_organized.migrate(root_id, role_arn, ssm_parameter_prefix)
 
 
 @cli.command()
 @click.option("--role-name", default="MigrateRole")
 @click.option("--path", default="/AWSOrganized/")
 @click.option("--assuming-resource", default="root")
+@click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
 @click.option("--output-format", default="yaml")
 @click.argument("assuming-account-id")
 def generate_migrate_role_template(
     role_name: str,
     path: str,
     assuming_resource: str,
+    ssm_parameter_prefix: str,
     output_format: str,
     assuming_account_id: str,
 ):
@@ -171,29 +175,33 @@ def generate_migrate_role_template(
         path,
         assuming_account_id,
         assuming_resource,
+        ssm_parameter_prefix,
     )
     if output_format.lower() == "json":
         click.echo(t.to_json())
     else:
-        click.echo(t.to_yaml())
+        click.echo(t.to_yaml(clean_up=True))
 
 
 @cli.command()
 @click.option("--role-name", default="MigrateRole")
 @click.option("--path", default="/AWSOrganized/")
 @click.option("--assuming-resource", default="root")
+@click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
 @click.argument("assuming-account-id")
 def provision_migrate_role_stack(
     role_name: str,
     path: str,
     assuming_resource: str,
     assuming_account_id: str,
+    ssm_parameter_prefix: str,
 ):
     helpers.provision_migrate_role_stack(
         role_name,
         path,
         assuming_account_id,
         assuming_resource,
+        ssm_parameter_prefix,
     )
 
 

@@ -4,6 +4,7 @@ from awacs import (
     organizations as awacs_organizations,
     aws,
     sts as awacs_sts,
+    ssm as awscs_ssm,
 )
 import pkg_resources
 
@@ -19,6 +20,7 @@ def generate_role_template(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
+    additional_statements: list = [],
 ) -> troposphere.Template:
     t = troposphere.Template()
     t.description = f"Role used to run the {command} command"
@@ -40,7 +42,8 @@ def generate_role_template(
                             Action=actions,
                             Resource=["*"],
                         ),
-                    ],
+                    ]
+                    + additional_statements,
                 ),
             )
         ],
@@ -99,7 +102,7 @@ def provision_stack(stack_name_suffix: str, template: troposphere.Template) -> N
     ) as cloudformation:
         cloudformation.create_or_update(
             StackName=f"AWSOrganized-{stack_name_suffix}",
-            TemplateBody=template.to_yaml(),
+            TemplateBody=template.to_yaml(clean_up=True),
             Capabilities=["CAPABILITY_NAMED_IAM"],
         )
 
@@ -162,6 +165,7 @@ def generate_migrate_role_template(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
+    ssm_parameter_prefix: str,
 ) -> troposphere.Template:
     return generate_role_template(
         "migrate",
@@ -177,6 +181,25 @@ def generate_migrate_role_template(
         path,
         assuming_account_id,
         assuming_resource,
+        [
+            aws.Statement(
+                Sid="2",
+                Effect=aws.Allow,
+                Action=[
+                    awscs_ssm.GetParameter,
+                    awscs_ssm.PutParameter,
+                ],
+                Resource=[
+                    troposphere.Sub(
+                        awscs_ssm.ARN(
+                            resource=f"parameter{ssm_parameter_prefix}/migrations/*",
+                            account="${AWS::AccountId}",
+                            region="${AWS::Region}",
+                        )
+                    ),
+                ],
+            )
+        ],
     )
 
 
@@ -185,12 +208,14 @@ def provision_migrate_role_stack(
     path: str,
     assuming_account_id: str,
     assuming_resource: str,
+    ssm_parameter_prefix: str,
 ) -> troposphere.Template:
     template = generate_migrate_role_template(
         role_name,
         path,
         assuming_account_id,
         assuming_resource,
+        ssm_parameter_prefix,
     )
     provision_stack("migrate-role", template)
     return template
@@ -304,6 +329,11 @@ def generate_codepipeline_template(
                         "Type": "PARAMETER_STORE",
                         "Value": troposphere.Ref(version_parameter),
                     },
+                    {
+                        "Name": "SSM_PARAMETER_PREFIX",
+                        "Type": "PLAINTEXT",
+                        "Value": ssm_parameter_prefix,
+                    },
                 ],
             ),
             Name=project_name,
@@ -322,7 +352,7 @@ def generate_codepipeline_template(
                             },
                             build={
                                 "commands": [
-                                    "aws-organized migrate $MIGRATE_ROLE_ARN",
+                                    "aws-organized migrate --ssm-parameter-prefix $SSM_PARAMETER_PREFIX $MIGRATE_ROLE_ARN",
                                 ],
                             },
                         ),

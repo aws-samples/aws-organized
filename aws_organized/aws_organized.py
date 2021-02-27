@@ -15,6 +15,7 @@ from aws_organized import migrations
 from aws_organized.extensions.service_control_policies import service_control_policies
 from datetime import datetime
 
+
 logging.disable(sys.maxsize)
 
 STATE_FILE = "state.yaml"
@@ -22,7 +23,6 @@ SERVICE_CONTROL_POLICY = "SERVICE_CONTROL_POLICY"
 ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
 META_FILE_NAME = "_meta.yaml"
 SEP = os.path.sep
-SSM_PARAMETER_PREFIX = "/_aws-organized/migrations"
 
 EXTENSION = "aws_organized"
 
@@ -429,24 +429,28 @@ def get_accounts_folders() -> list:
     return [x[0] for x in os.walk("environment/") if x[0].split(SEP)[-2] == "_accounts"]
 
 
-def migrate(role_arn: str) -> None:
+def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
     with betterboto_client.CrossAccountClientContextManager(
         "ssm",
         role_arn,
         f"ssm",
     ) as ssm:
-        for migration_file in sorted(os.listdir("environment/migrations")):
+        for migration_file in sorted(os.listdir(f"environment/{root_id}/_migrations")):
             migration_id = migration_file.split(SEP)[-1].replace(".yaml", "")
 
             try:
-                ssm.get_parameter(Name=f"{SSM_PARAMETER_PREFIX}/{migration_id}")
+                ssm.get_parameter(
+                    Name=f"{ssm_parameter_prefix}/migrations/{migration_id}"
+                )
                 click.echo(f"Migration: {migration_id} already run")
             except ssm.exceptions.ParameterNotFound:
                 click.echo(
                     f"Record of migration: {migration_id} being run not found, running now"
                 )
                 migration = yaml.safe_load(
-                    open(f"environment/migrations/{migration_file}", "r").read()
+                    open(
+                        f"environment/{root_id}/_migrations/{migration_file}", "r"
+                    ).read()
                 )
                 migration_extension = migration.get("extension")
                 migration_type = migration.get("migration_type")
@@ -473,7 +477,7 @@ def migrate(role_arn: str) -> None:
 
                 print(f"{migration_id}: { status }")
                 ssm.put_parameter(
-                    Name=f"{SSM_PARAMETER_PREFIX}/{migration_id}",
+                    Name=f"{ssm_parameter_prefix}/migrations/{migration_id}",
                     Description=f"Migration run: {datetime.utcnow()}",
                     Value=status,
                     Type="String",
