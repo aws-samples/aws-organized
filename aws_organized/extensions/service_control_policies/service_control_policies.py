@@ -7,6 +7,8 @@ import click
 import os
 from betterboto import client as betterboto_client
 from . import migrations
+from progress import bar
+
 
 SERVICE_CONTROL_POLICY = "SERVICE_CONTROL_POLICY"
 ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
@@ -73,8 +75,9 @@ def save_targets_for_policy(root_id, organizations) -> None:  # done
         f"environment/{root_id}/_policies/service_control_policies/*/*.yaml"
     )
     state = yaml.safe_load(open("state.yaml", "r").read())
+    progress = bar.IncrementalBar("Importing policies", max=len(policies))
     for policy_file in policies:
-        click.echo("looking at")
+        progress.next()
         policy = yaml.safe_load(open(policy_file, "r").read())
         policy_id = policy.get("Id")
         targets = organizations.list_targets_for_policy_single_page(
@@ -123,7 +126,7 @@ def save_targets_for_policy(root_id, organizations) -> None:  # done
                 raise Exception(f"Not handled type: {target.get('Type')}")
 
             if attached:
-                assert len(attached) == 1
+                assert len(attached) == 1, target
                 attached = attached[0]
                 output_path = attached.replace(
                     "_meta.yaml", "_service_control_policies.yaml"
@@ -151,7 +154,7 @@ def save_targets_for_policy(root_id, organizations) -> None:  # done
                     i.update(policy)
                     output["Inherited"].append(i)
                     open(output_path, "w").write(yaml.safe_dump(output))
-
+    progress.finish()
 
 def remove_any_existing_policy_records(root_id: str) -> None:  # done
     policies = glob.glob(
@@ -162,15 +165,20 @@ def remove_any_existing_policy_records(root_id: str) -> None:  # done
 
 
 def import_organization_policies(role_arn, root_id) -> None:  # done
-    click.echo("Updating state file")
     with betterboto_client.CrossAccountClientContextManager(
         "organizations",
         role_arn,
         f"organizations",
     ) as organizations:
+        progress = bar.IncrementalBar("Importing SCPs", max=4)
+        progress.next()
         remove_any_existing_policy_records(root_id)
+        progress.next()
         save_all_policies_from_org(root_id, organizations)
+        progress.next()
         save_targets_for_policy(root_id, organizations)
+        progress.next()
+        progress.finish()
 
 
 def check_policies(root_id: str, organizations) -> None:
@@ -181,6 +189,7 @@ def check_policies(root_id: str, organizations) -> None:
         policy_file_path = policy_content_path.replace("policy.json", "_meta.yaml")
         if os.path.exists(policy_file_path):
             local_policy = yaml.safe_load(open(policy_file_path, "r").read())
+            if local_policy.get("AwsManaged"): continue
             p = organizations.describe_policy(PolicyId=local_policy.get("Id")).get(
                 "Policy"
             )

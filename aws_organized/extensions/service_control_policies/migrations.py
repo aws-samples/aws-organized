@@ -55,7 +55,8 @@ def policy_create(
 ) -> MigrationResult:
     try:
         client.create_policy(
-            Content=json.dumps(json.loads(content), indent=0),
+            Content=content,
+            Description="-",
             Name=name,
             Type="SERVICE_CONTROL_POLICY",
         )

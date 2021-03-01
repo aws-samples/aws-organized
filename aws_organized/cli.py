@@ -38,7 +38,8 @@ def import_organization(role_arn):
     ) as organizations:
         for root in organizations.list_roots_single_page().get("Roots", []):
             os.makedirs(f"environment/{root.get('Id')}", exist_ok=True)
-    for root_id in os.listdir("environment"):
+    roots = os.listdir("environment")
+    for root_id in roots:
         if root_id in ["migrations", "Policies", "policies_migration"]:
             continue
         click.echo(f"Processing root_id: {root_id}")

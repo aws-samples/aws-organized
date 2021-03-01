@@ -14,6 +14,7 @@ import sys
 from aws_organized import migrations
 from aws_organized.extensions.service_control_policies import service_control_policies
 from datetime import datetime
+from progress import bar
 
 
 logging.disable(sys.maxsize)
@@ -83,7 +84,6 @@ def get_children_details_filter_by_organizational_unit(
 
 
 def update_state(role_arn) -> None:
-    click.echo("Updating state file")
     with betterboto_client.CrossAccountClientContextManager(
         "organizations",
         role_arn,
@@ -96,9 +96,10 @@ def update_state(role_arn) -> None:
         by_name = dict()
         by_id = dict()
         organizational_units = dict(tree=tree, by_name=by_name, by_id=by_id)
-        click.echo("Getting organizational units")
         result["organizational_units"] = organizational_units
+        progress = bar.IncrementalBar('Adding roots', max=len(list_roots_response.get("Roots", [])))
         for root in list_roots_response.get("Roots", []):
+            progress.next()
             root_id = str(root.get("Id"))
             details = dict(
                 Type="Root",
@@ -119,18 +120,17 @@ def update_state(role_arn) -> None:
                     ).get("Policies", []),
                 ),
             )
+        progress.finish()
 
         with open(STATE_FILE, "w") as f:
             f.write(yaml.safe_dump(result))
-        click.echo("Saved organizational units")
 
-        click.echo("Getting accounts")
         accounts = organizations.list_accounts_single_page().get("Accounts", [])
-        click.echo(f"Adding accounts: {len(accounts)}")
+        progress = bar.IncrementalBar('Adding accounts', max=len(accounts))
         counter = 1
         for account in accounts:
+            progress.next()
             account_id = account.get("Id")
-            click.echo(f"Adding {account_id} ({counter} of {len(accounts)})")
             all_accounts[account_id] = dict(
                 details=account,
                 parents=organizations.list_parents_single_page(ChildId=account_id).get(
@@ -144,11 +144,9 @@ def update_state(role_arn) -> None:
                 ),
             )
             counter += 1
+        progress.finish()
         with open(STATE_FILE, "w") as f:
             f.write(yaml.safe_dump(result))
-        click.echo("Saved accounts")
-
-        click.echo("Finished")
         return result
 
 
@@ -242,14 +240,17 @@ def write_migration(
 
 
 def make_migrations(role_arn: str, root_id: str) -> None:
-    os.makedirs(SEP.join(["environment", "migrations"]), exist_ok=True)
     with betterboto_client.CrossAccountClientContextManager(
         "organizations",
         role_arn,
         f"organizations",
     ) as orgs_client:
+        progress = bar.IncrementalBar("Making migrations", max=2)
+        progress.next()
         make_migrations_for_organizational_units(orgs_client, root_id)
+        progress.next()
         make_migrations_for_accounts(orgs_client, root_id)
+        progress.finish()
 
 
 def make_migrations_for_accounts(organizations, root_id: str) -> None:
@@ -435,7 +436,9 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
         role_arn,
         f"ssm",
     ) as ssm:
+        progress = bar.IncrementalBar("Migrating", max=len(os.listdir(f"environment/{root_id}/_migrations")))
         for migration_file in sorted(os.listdir(f"environment/{root_id}/_migrations")):
+            progress.next()
             migration_id = migration_file.split(SEP)[-1].replace(".yaml", "")
 
             try:
@@ -470,18 +473,20 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
                         role_arn=role_arn,
                         role_session_name="ou_create",
                     ) as client:
-                        result = migration_function(client, **migration_params)
-                        status = "Ok" if result else "Failed"
+                        result, message = migration_function(client, **migration_params)
                 except Exception as ex:
-                    status = "Unhandled error: {0}".format(ex)
+                    result = False
+                    message = "Unhandled error: {0}".format(ex)
 
-                print(f"{migration_id}: { status }")
+                status = 'Ok' if result else 'FAILED'
+                print(f"{migration_id}: {status} - {message}")
                 ssm.put_parameter(
                     Name=f"{ssm_parameter_prefix}/migrations/{migration_id}",
                     Description=f"Migration run: {datetime.utcnow()}",
-                    Value=status,
+                    Value=status if result else f"{status}: {message}",
                     Type="String",
                     Tags=[
                         {"Key": "AWS-Organized:Actor", "Value": "Framework"},
                     ],
                 )
+        progress.finish()

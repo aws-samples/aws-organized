@@ -188,6 +188,7 @@ def generate_migrate_role_template(
                 Action=[
                     awscs_ssm.GetParameter,
                     awscs_ssm.PutParameter,
+                    awscs_ssm.AddTagsToResource,
                 ],
                 Resource=[
                     troposphere.Sub(
