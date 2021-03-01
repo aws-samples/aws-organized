@@ -16,7 +16,7 @@ MigrationResult = Tuple[bool, str]
 OK = "Ok"
 
 
-def ou_create(client, name: str, parent_id: str) -> MigrationResult:
+def ou_create(root_id: str, client, name: str, parent_id: str) -> MigrationResult:
     try:
         client.create_organizational_unit(
             ParentId=parent_id,
@@ -32,7 +32,7 @@ def ou_create(client, name: str, parent_id: str) -> MigrationResult:
 
 
 def ou_create_with_non_existent_parent_ou(
-    client, name: str, parent_ou_path: str
+    root_id: str, client, name: str, parent_ou_path: str
 ) -> MigrationResult:
     try:
         parent_id = client.convert_path_to_ou(parent_ou_path)
@@ -45,7 +45,9 @@ def ou_create_with_non_existent_parent_ou(
         return False, "{0}".format(message)
 
 
-def ou_rename(client, name: str, organizational_unit_id: str) -> MigrationResult:
+def ou_rename(
+    root_id: str, client, name: str, organizational_unit_id: str
+) -> MigrationResult:
     try:
         client.update_organizational_unit(
             OrganizationalUnitId=organizational_unit_id,
@@ -61,7 +63,11 @@ def ou_rename(client, name: str, organizational_unit_id: str) -> MigrationResult
 
 
 def account_move(
-    client, account_id: str, destination_parent_id: str, source_parent_id: str
+    root_id: str,
+    client,
+    account_id: str,
+    destination_parent_id: str,
+    source_parent_id: str,
 ) -> MigrationResult:
     try:
         client.move_account(
@@ -79,6 +85,7 @@ def account_move(
 
 
 def account_move_with_non_existent_parent_ou(
+    root_id: str,
     client,
     account_id: str,
     source_parent_id: str,

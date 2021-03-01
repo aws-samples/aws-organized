@@ -156,6 +156,7 @@ def save_targets_for_policy(root_id, organizations) -> None:  # done
                     open(output_path, "w").write(yaml.safe_dump(output))
     progress.finish()
 
+
 def remove_any_existing_policy_records(root_id: str) -> None:  # done
     policies = glob.glob(
         f"environment/{root_id}/**/_service_control_policies.yaml", recursive=True
@@ -189,7 +190,8 @@ def check_policies(root_id: str, organizations) -> None:
         policy_file_path = policy_content_path.replace("policy.json", "_meta.yaml")
         if os.path.exists(policy_file_path):
             local_policy = yaml.safe_load(open(policy_file_path, "r").read())
-            if local_policy.get("AwsManaged"): continue
+            if local_policy.get("AwsManaged"):
+                continue
             p = organizations.describe_policy(PolicyId=local_policy.get("Id")).get(
                 "Policy"
             )
@@ -274,7 +276,7 @@ def check_attachment(root_id: str, policy_file_path: str, organizations) -> None
     for local_policy in local_policies.get("Attached", []):
         found = False
         for remote_policy in remote_policies:
-            if local_policy.get("Id") == remote_policy.get("Id"):
+            if local_policy.get("Name") == remote_policy.get("Name"):
                 found = True
         if not found:
             write_migration(
@@ -282,7 +284,7 @@ def check_attachment(root_id: str, policy_file_path: str, organizations) -> None
                 root_id,
                 migrations.POLICY_ATTACH,
                 dict(
-                    policy_id=local_policy.get("Id"),
+                    policy_name=local_policy.get("Name"),
                     target_id=meta.get("Id"),
                 ),
             )

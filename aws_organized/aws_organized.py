@@ -97,7 +97,9 @@ def update_state(role_arn) -> None:
         by_id = dict()
         organizational_units = dict(tree=tree, by_name=by_name, by_id=by_id)
         result["organizational_units"] = organizational_units
-        progress = bar.IncrementalBar('Adding roots', max=len(list_roots_response.get("Roots", [])))
+        progress = bar.IncrementalBar(
+            "Adding roots", max=len(list_roots_response.get("Roots", []))
+        )
         for root in list_roots_response.get("Roots", []):
             progress.next()
             root_id = str(root.get("Id"))
@@ -126,7 +128,7 @@ def update_state(role_arn) -> None:
             f.write(yaml.safe_dump(result))
 
         accounts = organizations.list_accounts_single_page().get("Accounts", [])
-        progress = bar.IncrementalBar('Adding accounts', max=len(accounts))
+        progress = bar.IncrementalBar("Adding accounts", max=len(accounts))
         counter = 1
         for account in accounts:
             progress.next()
@@ -436,7 +438,9 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
         role_arn,
         f"ssm",
     ) as ssm:
-        progress = bar.IncrementalBar("Migrating", max=len(os.listdir(f"environment/{root_id}/_migrations")))
+        progress = bar.IncrementalBar(
+            "Migrating", max=len(os.listdir(f"environment/{root_id}/_migrations"))
+        )
         for migration_file in sorted(os.listdir(f"environment/{root_id}/_migrations")):
             progress.next()
             migration_id = migration_file.split(SEP)[-1].replace(".yaml", "")
@@ -445,11 +449,11 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
                 ssm.get_parameter(
                     Name=f"{ssm_parameter_prefix}/migrations/{migration_id}"
                 )
-                click.echo(f"Migration: {migration_id} already run")
+                click.echo(f" Migration: {migration_id} already run")
             except ssm.exceptions.ParameterNotFound:
-                click.echo(
-                    f"Record of migration: {migration_id} being run not found, running now"
-                )
+                # click.echo(
+                #     f" Record of migration: {migration_id} being run not found, running now"
+                # )
                 migration = yaml.safe_load(
                     open(
                         f"environment/{root_id}/_migrations/{migration_file}", "r"
@@ -473,13 +477,15 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
                         role_arn=role_arn,
                         role_session_name="ou_create",
                     ) as client:
-                        result, message = migration_function(client, **migration_params)
+                        result, message = migration_function(
+                            root_id, client, **migration_params
+                        )
                 except Exception as ex:
                     result = False
                     message = "Unhandled error: {0}".format(ex)
 
-                status = 'Ok' if result else 'FAILED'
-                print(f"{migration_id}: {status} - {message}")
+                status = "Ok" if result else "FAILED"
+                click.echo(f"{migration_id}: {status} - {message}")
                 ssm.put_parameter(
                     Name=f"{ssm_parameter_prefix}/migrations/{migration_id}",
                     Description=f"Migration run: {datetime.utcnow()}",

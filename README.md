@@ -229,13 +229,7 @@ Attached:
   Id: p-FullAWSAccess
   Name: FullAWSAccess
   Type: SERVICE_CONTROL_POLICY
-- Arn: arn:aws:organizations::156551640785:policy/o-78bxnm2a5p/service_control_policy/p-uc5s2thj
-  AwsManaged: false
-  Description: allow all of s3
-  Id: p-uc5s2thj
-  Name: OnlyS3
-  Source: infra
-  Type: SERVICE_CONTROL_POLICY
+- Name: OnlyS3
 Inherited:
 - Arn: arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess
   AwsManaged: true
@@ -245,16 +239,13 @@ Inherited:
   Source: sharedservices
   Type: SERVICE_CONTROL_POLICY
 ```
-In the above example we appended:
+In the above example we appended the name only:
 
 ```yaml
-Arn: arn:aws:organizations::156551640785:policy/o-78bxnm2a5p/service_control_policy/p-uc5s2thj
-AwsManaged: false
-Description: allow all of s3
-Id: p-uc5s2thj
 Name: OnlyS3
-Type: SERVICE_CONTROL_POLICY
 ```
+
+AWS-Organized will look up the rest of the details for you.
 
 ### Generating migrations
 Once you have made your changes you can then run `aws-organized make-migrations <make-migrations-role-arn>` where

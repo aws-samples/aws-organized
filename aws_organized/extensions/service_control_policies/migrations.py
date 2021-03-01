@@ -1,7 +1,8 @@
 from typing import Callable, Tuple
-import json
+import yaml
 import sys
 import botocore
+import os
 
 POLICY_ATTACH = "POLICY_ATTACH"
 POLICY_DETAILS_UPDATE = "POLICY_DETAILS_UPDATE"
@@ -13,6 +14,7 @@ MigrationResult = Tuple[bool, str]
 
 
 def policy_details_update(
+    root_id: str,
     client,
     id: str,
     name: str,
@@ -33,7 +35,9 @@ def policy_details_update(
     return True, OK
 
 
-def policy_content_update(client, id: str, content: str) -> MigrationResult:
+def policy_content_update(
+    root_id: str, client, id: str, content: str
+) -> MigrationResult:
     try:
         client.update_policy(
             PolicyId=id,
@@ -49,6 +53,7 @@ def policy_content_update(client, id: str, content: str) -> MigrationResult:
 
 
 def policy_create(
+    root_id: str,
     client,
     name: str,
     content: str,
@@ -71,13 +76,29 @@ def policy_create(
 
 
 def policy_attach(
+    root_id: str,
     client,
-    policy_id: str,
+    policy_name: str,
     target_id: str,
 ) -> MigrationResult:
+    meta_file = f"environment/{root_id}/_policies/service_control_policies/{policy_name}/_meta.yaml"
+    if os.path.exists(meta_file):
+        policy_to_use = yaml.safe_load(
+            open(
+                meta_file,
+                "r",
+            ).read()
+        )
+    else:
+        for policy in client.list_policies_single_page(
+            Filter="SERVICE_CONTROL_POLICY"
+        ).get("Policies", []):
+            if policy.get("Name") == policy_name:
+                policy_to_use = policy
+                break
     try:
         client.attach_policy(
-            PolicyId=policy_id,
+            PolicyId=policy_to_use.get("Id"),
             TargetId=target_id,
         )
 

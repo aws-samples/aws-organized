@@ -176,6 +176,7 @@ def generate_migrate_role_template(
             awacs_organizations.CreatePolicy,
             awacs_organizations.UpdatePolicy,
             awacs_organizations.AttachPolicy,
+            awacs_organizations.ListPolicies,
         ],
         role_name,
         path,
