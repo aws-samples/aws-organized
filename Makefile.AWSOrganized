@@ -7,8 +7,8 @@ CICD_ACCOUNT_ID="156551640785"
 ORG_MANAGEMENT_ACCOUNT_ID=156551640785
 
 IMPORT_ROLE_ARN="arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/ImportOrganizationRole"
-MIGRATE_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MigrateRole"
 MAKE_MIGRATIONS_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MakeMigrationsRole"
+MIGRATE_ROLE_ARN = "arn:aws:iam::$(ORG_MANAGEMENT_ACCOUNT_ID):role/AWSOrganized/MigrateRole"
 
 import-organization:
 	poetry run aws-organized import-organization $(IMPORT_ROLE_ARN)

@@ -229,6 +229,9 @@ def generate_codepipeline_template(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
+    scm_connection_arn: str,
+    scm_full_repository_id: str,
+    scm_branch_name: str,
     migrate_role_arn: str,
 ) -> troposphere.Template:
     version = pkg_resources.get_distribution("aws-organized").version
@@ -238,11 +241,11 @@ def generate_codepipeline_template(
     )
 
     project_name = "AWSOrganized-Migrate"
-    repository_name = "AWS-Organized-environment"
 
-    repo = t.add_resource(
-        codecommit.Repository("Repository", RepositoryName=repository_name)
-    )
+    if scm_connection_arn is None:
+        t.add_resource(
+            codecommit.Repository("Repository", RepositoryName=scm_full_repository_id)
+        )
 
     artifact_store = t.add_resource(
         s3.Bucket(
@@ -369,22 +372,41 @@ def generate_codepipeline_template(
         )
     )
 
-    source_actions = codepipeline.Actions(
-        Name="SourceAction",
-        ActionTypeId=codepipeline.ActionTypeId(
-            Category="Source",
-            Owner="AWS",
-            Version="1",
-            Provider="CodeCommit",
-        ),
-        OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
-        Configuration={
-            "RepositoryName": repository_name,
-            "BranchName": "main",
-            "PollForSourceChanges": "true",
-        },
-        RunOrder="1",
-    )
+    if scm_connection_arn is None:
+        source_actions = codepipeline.Actions(
+            Name="SourceAction",
+            ActionTypeId=codepipeline.ActionTypeId(
+                Category="Source",
+                Owner="AWS",
+                Version="1",
+                Provider="CodeCommit",
+            ),
+            OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
+            Configuration={
+                "RepositoryName": scm_full_repository_id,
+                "BranchName": scm_branch_name,
+                "PollForSourceChanges": "true",
+            },
+            RunOrder="1",
+        )
+    else:
+        source_actions = codepipeline.Actions(
+            Name="SourceAction",
+            ActionTypeId=codepipeline.ActionTypeId(
+                Category="Source",
+                Owner="AWS",
+                Version="1",
+                Provider="CodeStarSourceConnection",
+            ),
+            OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
+            Configuration={
+                "ConnectionArn": scm_connection_arn,
+                "FullRepositoryId": scm_full_repository_id,
+                "BranchName": scm_branch_name,
+                "OutputArtifactFormat": "CODE_ZIP",
+            },
+            RunOrder="1",
+        )
 
     t.add_resource(
         codepipeline.Pipeline(
@@ -433,6 +455,9 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
+    scm_connection_arn: str,
+    scm_full_repository_id: str,
+    scm_branch_name: str,
     migrate_role_arn: str,
 ) -> troposphere.Template:
     template = generate_codepipeline_template(
@@ -441,6 +466,9 @@ def provision_codepipeline_stack(
         codebuild_role_name,
         codebuild_role_path,
         ssm_parameter_prefix,
+        scm_connection_arn,
+        scm_full_repository_id,
+        scm_branch_name,
         migrate_role_arn,
     )
     provision_stack("codepipeline", template)
