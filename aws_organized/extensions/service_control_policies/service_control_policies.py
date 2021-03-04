@@ -70,6 +70,16 @@ def save_policies_for_each_entity(entities: list, organizations) -> None:  # don
         save_policies_for_entity(entity, organizations)
 
 
+def get_path_for_ou(root_id: str, ou: dict) -> str:
+    ou_path = ou.get("path")
+    parts = ou_path.split("/")[1:]
+    file_path = ["environment", root_id]
+    for part in parts:
+        file_path.append("_organizational_units")
+        file_path.append(part)
+    return SEP.join(file_path)
+
+
 def save_targets_for_policy(root_id, organizations) -> None:  # done
     policies = glob.glob(
         f"environment/{root_id}/_policies/service_control_policies/*/*.yaml"
@@ -98,18 +108,19 @@ def save_targets_for_policy(root_id, organizations) -> None:  # done
                     state.get("organizational_units")
                     .get("by_id")
                     .get(target.get("TargetId"))
-                    .get("details")
                 )
-                attached = glob.glob(
-                    f"environment/{root_id}/**/{ou.get('Name')}/_meta.yaml",
+
+                path_to_ou = get_path_for_ou(root_id, ou)
+                attached = glob.glob(f"{path_to_ou}/_meta.yaml")
+
+                # add any accounts in the accounts directory
+                inherited += glob.glob(
+                    f"{path_to_ou}/_accounts/**/_meta.yaml",
                     recursive=True,
                 )
+                # any ous in the ou directory and add any of their accounts from their accounts directories
                 inherited += glob.glob(
-                    f"environment/{root_id}/**/{ou.get('Name')}/_accounts/*/_meta.yaml",
-                    recursive=True,
-                )
-                inherited += glob.glob(
-                    f"environment/{root_id}/**/{ou.get('Name')}/_organizational_units/**/_meta.yaml",
+                    f"{path_to_ou}/_organizational_units/**/_meta.yaml",
                     recursive=True,
                 )
             elif target.get("Type") == "ROOT":
@@ -126,7 +137,9 @@ def save_targets_for_policy(root_id, organizations) -> None:  # done
                 raise Exception(f"Not handled type: {target.get('Type')}")
 
             if attached:
-                assert len(attached) == 1, target
+                assert (
+                    len(attached) == 1
+                ), f"mapping to attached entity found {len(attached)} entities for {target}"
                 attached = attached[0]
                 output_path = attached.replace(
                     "_meta.yaml", "_service_control_policies.yaml"
