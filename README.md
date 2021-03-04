@@ -104,13 +104,13 @@ You can run this in AWS CodePipeline using our template.
 run:
 
 ```shell script
-aws-organized generate-codepipeline-template <organized_account_id>
+aws-organized generate-codepipeline-template <MIGRATE_ROLE_ARN>
 ```
 
 To provision the stack you can run:
 
 ```shell script
-aws-organized provision-codepipeline-stack <organized_account_id>
+aws-organized provision-codepipeline-stack <MIGRATE_ROLE_ARN>
 ```
 
 
