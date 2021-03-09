@@ -229,9 +229,13 @@ def generate_codepipeline_template(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
+    scm_provider: str,
     scm_connection_arn: str,
     scm_full_repository_id: str,
     scm_branch_name: str,
+    scm_bucket_name: str,
+    scm_object_key: str,
+    scm_skip_creation_of_repo: str,
     migrate_role_arn: str,
 ) -> troposphere.Template:
     version = pkg_resources.get_distribution("aws-organized").version
@@ -241,15 +245,40 @@ def generate_codepipeline_template(
     )
 
     project_name = "AWSOrganized-Migrate"
+    bucket_name = scm_bucket_name
 
-    if scm_connection_arn is None:
+    if scm_provider.lower() == "codecommit" and scm_skip_creation_of_repo is False:
         t.add_resource(
             codecommit.Repository("Repository", RepositoryName=scm_full_repository_id)
+        )
+
+    if scm_provider.lower() == "s3" and scm_skip_creation_of_repo is False:
+        bucket_name = (
+            scm_bucket_name
+            if scm_bucket_name
+            else troposphere.Sub("aws-organized-pipeline-source-${AWS::AccountId}")
+        )
+        t.add_resource(
+            s3.Bucket(
+                "Source",
+                BucketName=bucket_name,
+                VersioningConfiguration=s3.VersioningConfiguration(Status="Enabled"),
+                BucketEncryption=s3.BucketEncryption(
+                    ServerSideEncryptionConfiguration=[
+                        s3.ServerSideEncryptionRule(
+                            ServerSideEncryptionByDefault=s3.ServerSideEncryptionByDefault(
+                                SSEAlgorithm="AES256"
+                            )
+                        )
+                    ]
+                ),
+            )
         )
 
     artifact_store = t.add_resource(
         s3.Bucket(
             "ArtifactStore",
+            VersioningConfiguration=s3.VersioningConfiguration(Status="Enabled"),
             BucketEncryption=s3.BucketEncryption(
                 ServerSideEncryptionConfiguration=[
                     s3.ServerSideEncryptionRule(
@@ -372,8 +401,8 @@ def generate_codepipeline_template(
         )
     )
 
-    if scm_connection_arn is None:
-        source_actions = codepipeline.Actions(
+    source_actions = dict(
+        codecommit=codepipeline.Actions(
             Name="SourceAction",
             ActionTypeId=codepipeline.ActionTypeId(
                 Category="Source",
@@ -388,9 +417,8 @@ def generate_codepipeline_template(
                 "PollForSourceChanges": "true",
             },
             RunOrder="1",
-        )
-    else:
-        source_actions = codepipeline.Actions(
+        ),
+        codestarsourceconnection=codepipeline.Actions(
             Name="SourceAction",
             ActionTypeId=codepipeline.ActionTypeId(
                 Category="Source",
@@ -406,7 +434,24 @@ def generate_codepipeline_template(
                 "OutputArtifactFormat": "CODE_ZIP",
             },
             RunOrder="1",
-        )
+        ),
+        s3=codepipeline.Actions(
+            Name="SourceAction",
+            ActionTypeId=codepipeline.ActionTypeId(
+                Category="Source",
+                Owner="AWS",
+                Version="1",
+                Provider="S3",
+            ),
+            OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
+            Configuration={
+                "S3Bucket": bucket_name,
+                "S3ObjectKey": scm_object_key,
+                "PollForSourceChanges": True,
+            },
+            RunOrder="1",
+        ),
+    ).get(scm_provider.lower())
 
     t.add_resource(
         codepipeline.Pipeline(
@@ -455,9 +500,13 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
+    scm_provider: str,
     scm_connection_arn: str,
     scm_full_repository_id: str,
     scm_branch_name: str,
+    scm_bucket_name: str,
+    scm_object_key: str,
+    scm_skip_creation_of_repo: str,
     migrate_role_arn: str,
 ) -> troposphere.Template:
     template = generate_codepipeline_template(
@@ -466,9 +515,13 @@ def provision_codepipeline_stack(
         codebuild_role_name,
         codebuild_role_path,
         ssm_parameter_prefix,
+        scm_provider,
         scm_connection_arn,
         scm_full_repository_id,
         scm_branch_name,
+        scm_bucket_name,
+        scm_object_key,
+        scm_skip_creation_of_repo,
         migrate_role_arn,
     )
     provision_stack("codepipeline", template)
