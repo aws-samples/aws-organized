@@ -212,9 +212,13 @@ def provision_migrate_role_stack(
 @click.option("--codebuild-role-name", default="CodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
 @click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
+@click.option("--scm-provider", default="CodeCommit")
 @click.option("--scm-connection-arn")
 @click.option("--scm-full-repository-id", default="AWS-Organized-environment")
 @click.option("--scm-branch-name", default="main")
+@click.option("--scm-bucket-name")
+@click.option("--scm-object-key", default="environment.zip")
+@click.option("--scm-skip-creation-of-repo", default=False)
 @click.option("--output_format", default="yaml")
 @click.argument("migrate-role-arn")
 def generate_codepipeline_template(
@@ -223,9 +227,13 @@ def generate_codepipeline_template(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
+    scm_provider: str,
     scm_connection_arn: str,
     scm_full_repository_id: str,
     scm_branch_name: str,
+    scm_bucket_name: str,
+    scm_object_key: str,
+    scm_skip_creation_of_repo: str,
     output_format: str,
     migrate_role_arn: str,
 ):
@@ -235,9 +243,13 @@ def generate_codepipeline_template(
         codebuild_role_name,
         codebuild_role_path,
         ssm_parameter_prefix,
+        scm_provider,
         scm_connection_arn,
         scm_full_repository_id,
         scm_branch_name,
+        scm_bucket_name,
+        scm_object_key,
+        scm_skip_creation_of_repo,
         migrate_role_arn,
     )
     if output_format.lower() == "json":
@@ -252,9 +264,13 @@ def generate_codepipeline_template(
 @click.option("--codebuild-role-name", default="AWSOrganizedCodeBuildRole")
 @click.option("--codebuild-role-path", default="/AWSOrganized/")
 @click.option("--ssm-parameter-prefix", default="/-AWS-Organized")
+@click.option("--scm-provider", default="CodeCommit")
 @click.option("--scm-connection-arn")
 @click.option("--scm-full-repository-id", default="AWS-Organized-environment")
 @click.option("--scm-branch-name", default="main")
+@click.option("--scm-bucket-name")
+@click.option("--scm-object-key")
+@click.option("--scm-skip-creation-of-repo", default=False)
 @click.argument("migrate-role-arn")
 def provision_codepipeline_stack(
     codepipeline_role_name: str,
@@ -262,9 +278,13 @@ def provision_codepipeline_stack(
     codebuild_role_name: str,
     codebuild_role_path: str,
     ssm_parameter_prefix: str,
+    scm_provider: str,
     scm_connection_arn: str,
     scm_full_repository_id: str,
     scm_branch_name: str,
+    scm_bucket_name: str,
+    scm_object_key: str,
+    scm_skip_creation_of_repo: str,
     migrate_role_arn: str,
 ):
     helpers.provision_codepipeline_stack(
@@ -273,9 +293,13 @@ def provision_codepipeline_stack(
         codebuild_role_name,
         codebuild_role_path,
         ssm_parameter_prefix,
+        scm_provider,
         scm_connection_arn,
         scm_full_repository_id,
         scm_branch_name,
+        scm_bucket_name,
+        scm_object_key,
+        scm_skip_creation_of_repo,
         migrate_role_arn,
     )
 

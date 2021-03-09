@@ -101,18 +101,57 @@ recorded and so audit is possible.
 
 You can run this in AWS CodePipeline using our template.
 
-run:
+When running you have the option of which SCM you would like to use
+
+##### AWS CodeCommit
+
+preview the template:
 
 ```shell script
 aws-organized generate-codepipeline-template <MIGRATE_ROLE_ARN>
 ```
 
-To provision the stack you can run:
+provision the template:
 
 ```shell script
 aws-organized provision-codepipeline-stack <MIGRATE_ROLE_ARN>
 ```
+Please note, you can specify --scm-full-repository-id to provide the name of the repo and you can use scm-branch-name to provide a branch.  If you omit either a default value will be used.
 
+Finally, you can specify --scm-skip-creation-of-repo and the template will not include the AWS CodeCommit repo - you can bring your own.
+
+##### AWS S3
+
+preview the template:
+
+```shell script
+aws-organized generate-codepipeline-template --scm-provider s3 --scm-bucket-name foo --scm-object-key environment.zip <MIGRATE_ROLE_ARN>
+```
+
+provision the template:
+
+```shell script
+aws-organized provision-codepipeline-stack --scm-provider s3 --scm-bucket-name foo --scm-object-key environment.zip <MIGRATE_ROLE_ARN>
+```
+
+Please note if you omit --scm-bucket-name we will auto generate a bucket name for you.  If you omit --scm-object-key we will generate a value for you.
+
+Finally, you can specify --scm-skip-creation-of-repo and the template will not include the AWS S3 bucket - you can bring your own.
+
+##### Github / Github Enterprise / Bitbucket cloud (via CodeStarSourceConnections)
+
+preview the template:
+
+```shell script
+aws-organized generate-codepipeline-template --scm-provider CodeStarSourceConnection --scm-connection-arn <CODE_STAR_CONNECTION_ARN> --scm-full-repository-id <GIT_REPO_NAME> --scm-branch-name <GIT_BRANCH_NAME> <MIGRATE_ROLE_ARN>
+```
+
+provision the template:
+
+```shell script
+aws-organized provision-codepipeline-stack --scm-provider CodeStarSourceConnection --scm-connection-arn <CODE_STAR_CONNECTION_ARN> --scm-full-repository-id <GIT_REPO_NAME> --scm-branch-name <GIT_BRANCH_NAME> <MIGRATE_ROLE_ARN>
+```
+If you do not provide values for --scm-full-repository-id or --scm-branch-name default values will be provided for you.
 
 ### Making changes to your Org
 Before you can make changes you need to run:
