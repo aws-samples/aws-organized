@@ -1,3 +1,5 @@
+# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import troposphere
 import yaml
 from awacs import (
@@ -7,7 +9,6 @@ from awacs import (
     ssm as awscs_ssm,
 )
 import pkg_resources
-
 from awacs.iam import ARN as IAM_ARN
 from troposphere import iam, s3, codebuild, codecommit, codepipeline, ssm
 from betterboto import client as betterboto_client
@@ -24,7 +25,6 @@ def generate_role_template(
 ) -> troposphere.Template:
     t = troposphere.Template()
     t.description = f"Role used to run the {command} command"
-
     role = iam.Role(
         title="role",
         RoleName=role_name,
@@ -37,11 +37,8 @@ def generate_role_template(
                     Id=f"{command}-permissions",
                     Statement=[
                         aws.Statement(
-                            Sid="1",
-                            Effect=aws.Allow,
-                            Action=actions,
-                            Resource=["*"],
-                        ),
+                            Sid="1", Effect=aws.Allow, Action=actions, Resource=["*"]
+                        )
                     ]
                     + additional_statements,
                 ),
@@ -58,23 +55,18 @@ def generate_role_template(
                         "AWS", [IAM_ARN(assuming_resource, "", assuming_account_id)]
                     ),
                     Action=[awacs_sts.AssumeRole],
-                ),
+                )
             ],
         ),
     )
     t.add_resource(role)
-
     t.add_output(troposphere.Output("RoleName", Value=troposphere.Ref(role)))
     t.add_output(troposphere.Output("RoleArn", Value=troposphere.GetAtt(role, "Arn")))
-
     return t
 
 
 def generate_import_organization_role_template(
-    role_name: str,
-    path: str,
-    assuming_account_id: str,
-    assuming_resource: str,
+    role_name: str, path: str, assuming_account_id: str, assuming_resource: str
 ) -> troposphere.Template:
     return generate_role_template(
         "import-organizations",
@@ -97,9 +89,7 @@ def generate_import_organization_role_template(
 
 
 def provision_stack(stack_name_suffix: str, template: troposphere.Template) -> None:
-    with betterboto_client.ClientContextManager(
-        "cloudformation",
-    ) as cloudformation:
+    with betterboto_client.ClientContextManager("cloudformation") as cloudformation:
         cloudformation.create_or_update(
             StackName=f"AWSOrganized-{stack_name_suffix}",
             TemplateBody=template.to_yaml(clean_up=True),
@@ -108,26 +98,17 @@ def provision_stack(stack_name_suffix: str, template: troposphere.Template) -> N
 
 
 def provision_import_organization_role_stack(
-    role_name: str,
-    path: str,
-    assuming_account_id: str,
-    assuming_resource: str,
+    role_name: str, path: str, assuming_account_id: str, assuming_resource: str
 ) -> troposphere.Template:
     template = generate_import_organization_role_template(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
+        role_name, path, assuming_account_id, assuming_resource
     )
     provision_stack("import-organization-role", template)
     return template
 
 
 def generate_make_migrations_role_template(
-    role_name: str,
-    path: str,
-    assuming_account_id: str,
-    assuming_resource: str,
+    role_name: str, path: str, assuming_account_id: str, assuming_resource: str
 ) -> troposphere.Template:
     return generate_role_template(
         "make-migrations",
@@ -145,16 +126,10 @@ def generate_make_migrations_role_template(
 
 
 def provision_make_migrations_role_stack(
-    role_name: str,
-    path: str,
-    assuming_account_id: str,
-    assuming_resource: str,
+    role_name: str, path: str, assuming_account_id: str, assuming_resource: str
 ) -> troposphere.Template:
     template = generate_make_migrations_role_template(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
+        role_name, path, assuming_account_id, assuming_resource
     )
     provision_stack("make-migrations-role", template)
     return template
@@ -198,7 +173,7 @@ def generate_migrate_role_template(
                             account="${AWS::AccountId}",
                             region="${AWS::Region}",
                         )
-                    ),
+                    )
                 ],
             )
         ],
@@ -213,11 +188,7 @@ def provision_migrate_role_stack(
     ssm_parameter_prefix: str,
 ) -> troposphere.Template:
     template = generate_migrate_role_template(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
-        ssm_parameter_prefix,
+        role_name, path, assuming_account_id, assuming_resource, ssm_parameter_prefix
     )
     provision_stack("migrate-role", template)
     return template
@@ -243,15 +214,12 @@ def generate_codepipeline_template(
     t.set_description(
         "CICD template that runs aws organized migrate for the given branch of the given repo"
     )
-
     project_name = "AWSOrganized-Migrate"
     bucket_name = scm_bucket_name
-
     if scm_provider.lower() == "codecommit" and scm_skip_creation_of_repo is False:
         t.add_resource(
             codecommit.Repository("Repository", RepositoryName=scm_full_repository_id)
         )
-
     if scm_provider.lower() == "s3" and scm_skip_creation_of_repo is False:
         bucket_name = (
             scm_bucket_name
@@ -274,7 +242,6 @@ def generate_codepipeline_template(
                 ),
             )
         )
-
     artifact_store = t.add_resource(
         s3.Bucket(
             "ArtifactStore",
@@ -290,15 +257,12 @@ def generate_codepipeline_template(
             ),
         )
     )
-
     codepipeline_role = t.add_resource(
         iam.Role(
             "CodePipelineRole",
             RoleName=codepipeline_role_name,
             Path=codepipeline_role_path,
-            ManagedPolicyArns=[
-                "arn:aws:iam::aws:policy/AdministratorAccess",
-            ],
+            ManagedPolicyArns=["arn:aws:iam::aws:policy/AdministratorAccess"],
             AssumeRolePolicyDocument=aws.PolicyDocument(
                 Version="2012-10-17",
                 Statement=[
@@ -308,20 +272,17 @@ def generate_codepipeline_template(
                         Principal=aws.Principal(
                             "Service", ["codepipeline.amazonaws.com"]
                         ),
-                    ),
+                    )
                 ],
             ),
         )
     )
-
     codebuild_role = t.add_resource(
         iam.Role(
             "CodeBuildRole",
             RoleName=codebuild_role_name,
             Path=codebuild_role_path,
-            ManagedPolicyArns=[
-                "arn:aws:iam::aws:policy/AdministratorAccess",
-            ],
+            ManagedPolicyArns=["arn:aws:iam::aws:policy/AdministratorAccess"],
             AssumeRolePolicyDocument=aws.PolicyDocument(
                 Version="2012-10-17",
                 Statement=[
@@ -329,21 +290,18 @@ def generate_codepipeline_template(
                         Effect=aws.Allow,
                         Action=[awacs_sts.AssumeRole],
                         Principal=aws.Principal("Service", ["codebuild.amazonaws.com"]),
-                    ),
+                    )
                 ],
             ),
         )
     )
-
     version_parameter = ssm.Parameter(
         "versionparameter",
         Name=f"{ssm_parameter_prefix}/version",
         Type="String",
         Value=version,
     )
-
     t.add_resource(version_parameter)
-
     project = t.add_resource(
         codebuild.Project(
             "AWSOrganizedMigrate",
@@ -380,35 +338,25 @@ def generate_codepipeline_template(
                         phases=dict(
                             install={
                                 "runtime-versions": dict(python="3.8"),
-                                "commands": [
-                                    "pip install aws-organized==${Version}",
-                                ],
+                                "commands": ["pip install aws-organized==${Version}"],
                             },
                             build={
                                 "commands": [
-                                    "aws-organized migrate --ssm-parameter-prefix $SSM_PARAMETER_PREFIX $MIGRATE_ROLE_ARN",
-                                ],
+                                    "aws-organized migrate --ssm-parameter-prefix $SSM_PARAMETER_PREFIX $MIGRATE_ROLE_ARN"
+                                ]
                             },
                         ),
-                        artifacts=dict(
-                            files=[
-                                "environment",
-                            ],
-                        ),
+                        artifacts=dict(files=["environment"]),
                     )
                 ),
             ),
         )
     )
-
     source_actions = dict(
         codecommit=codepipeline.Actions(
             Name="SourceAction",
             ActionTypeId=codepipeline.ActionTypeId(
-                Category="Source",
-                Owner="AWS",
-                Version="1",
-                Provider="CodeCommit",
+                Category="Source", Owner="AWS", Version="1", Provider="CodeCommit"
             ),
             OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
             Configuration={
@@ -438,10 +386,7 @@ def generate_codepipeline_template(
         s3=codepipeline.Actions(
             Name="SourceAction",
             ActionTypeId=codepipeline.ActionTypeId(
-                Category="Source",
-                Owner="AWS",
-                Version="1",
-                Provider="S3",
+                Category="Source", Owner="AWS", Version="1", Provider="S3"
             ),
             OutputArtifacts=[codepipeline.OutputArtifacts(Name="SourceOutput")],
             Configuration={
@@ -452,16 +397,12 @@ def generate_codepipeline_template(
             RunOrder="1",
         ),
     ).get(scm_provider.lower())
-
     t.add_resource(
         codepipeline.Pipeline(
             "Pipeline",
             RoleArn=troposphere.GetAtt(codepipeline_role, "Arn"),
             Stages=[
-                codepipeline.Stages(
-                    Name="Source",
-                    Actions=[source_actions],
-                ),
+                codepipeline.Stages(Name="Source", Actions=[source_actions]),
                 codepipeline.Stages(
                     Name="Migrate",
                     Actions=[
@@ -490,7 +431,6 @@ def generate_codepipeline_template(
             ),
         )
     )
-
     return t
 
 

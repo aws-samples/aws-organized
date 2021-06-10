@@ -1,9 +1,7 @@
 # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
-
 import click
-
 from aws_organized import helpers
 from aws_organized import aws_organized
 from aws_organized.extensions.service_control_policies import service_control_policies
@@ -32,9 +30,7 @@ def apply_migration_policies(role_arn) -> None:
 @click.argument("role_arn")
 def import_organization(role_arn):
     with betterboto_client.CrossAccountClientContextManager(
-        "organizations",
-        role_arn,
-        f"organizations",
+        "organizations", role_arn, f"organizations"
     ) as organizations:
         for root in organizations.list_roots_single_page().get("Roots", []):
             os.makedirs(f"environment/{root.get('Id')}", exist_ok=True)
@@ -61,12 +57,8 @@ def generate_import_organization_role_template(
     assuming_account_id: str,
 ):
     t = helpers.generate_import_organization_role_template(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
+        role_name, path, assuming_account_id, assuming_resource
     )
-
     if output_format.lower() == "json":
         click.echo(t.to_json())
     else:
@@ -79,16 +71,10 @@ def generate_import_organization_role_template(
 @click.option("--assuming-resource", default="root")
 @click.argument("assuming-account-id")
 def provision_import_organization_role_stack(
-    role_name: str,
-    path: str,
-    assuming_resource: str,
-    assuming_account_id: str,
+    role_name: str, path: str, assuming_resource: str, assuming_account_id: str
 ):
     helpers.provision_import_organization_role_stack(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
+        role_name, path, assuming_account_id, assuming_resource
     )
 
 
@@ -117,12 +103,8 @@ def generate_make_migrations_role_template(
     assuming_account_id: str,
 ):
     t = helpers.generate_make_migrations_role_template(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
+        role_name, path, assuming_account_id, assuming_resource
     )
-
     if output_format.lower() == "json":
         click.echo(t.to_json())
     else:
@@ -135,16 +117,10 @@ def generate_make_migrations_role_template(
 @click.option("--assuming-resource", default="root")
 @click.argument("assuming-account-id")
 def provision_make_migrations_role_stack(
-    role_name: str,
-    path: str,
-    assuming_resource: str,
-    assuming_account_id: str,
+    role_name: str, path: str, assuming_resource: str, assuming_account_id: str
 ):
     helpers.provision_make_migrations_role_stack(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
+        role_name, path, assuming_account_id, assuming_resource
     )
 
 
@@ -172,11 +148,7 @@ def generate_migrate_role_template(
     assuming_account_id: str,
 ):
     t = helpers.generate_migrate_role_template(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
-        ssm_parameter_prefix,
+        role_name, path, assuming_account_id, assuming_resource, ssm_parameter_prefix
     )
     if output_format.lower() == "json":
         click.echo(t.to_json())
@@ -198,11 +170,7 @@ def provision_migrate_role_stack(
     ssm_parameter_prefix: str,
 ):
     helpers.provision_migrate_role_stack(
-        role_name,
-        path,
-        assuming_account_id,
-        assuming_resource,
-        ssm_parameter_prefix,
+        role_name, path, assuming_account_id, assuming_resource, ssm_parameter_prefix
     )
 
 

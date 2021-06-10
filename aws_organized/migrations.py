@@ -7,21 +7,15 @@ import botocore
 OU_CREATE = "OU_CREATE"
 OU_CREATE_WITH_NON_EXISTENT_PARENT_OU = "OU_CREATE_WITH_NON_EXISTENT_PARENT_OU"
 OU_RENAME = "OU_RENAME"
-
 ACCOUNT_MOVE = "ACCOUNT_MOVE"
 ACCOUNT_MOVE_WITH_NON_EXISTENT_PARENT_OU = "ACCOUNT_MOVE_WITH_NON_EXISTENT_PARENT_OU"
-
 MigrationResult = Tuple[bool, str]
-
 OK = "Ok"
 
 
 def ou_create(root_id: str, client, name: str, parent_id: str) -> MigrationResult:
     try:
-        client.create_organizational_unit(
-            ParentId=parent_id,
-            Name=name,
-        )
+        client.create_organizational_unit(ParentId=parent_id, Name=name)
     except botocore.exceptions.ClientError as error:
         message = error.response["Error"]["Message"]
         return False, message
@@ -50,8 +44,7 @@ def ou_rename(
 ) -> MigrationResult:
     try:
         client.update_organizational_unit(
-            OrganizationalUnitId=organizational_unit_id,
-            Name=name,
+            OrganizationalUnitId=organizational_unit_id, Name=name
         )
         return True, OK
     except botocore.exceptions.ClientError as error:
@@ -85,11 +78,7 @@ def account_move(
 
 
 def account_move_with_non_existent_parent_ou(
-    root_id: str,
-    client,
-    account_id: str,
-    source_parent_id: str,
-    destination_path: str,
+    root_id: str, client, account_id: str, source_parent_id: str, destination_path: str
 ) -> MigrationResult:
     try:
         destination_parent_id = client.convert_path_to_ou(destination_path)
