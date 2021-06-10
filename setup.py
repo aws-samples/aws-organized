@@ -7,6 +7,7 @@ package_dir = \
 packages = \
 ['aws_organized',
  'aws_organized.extensions',
+ 'aws_organized.extensions.delegated_administrators',
  'aws_organized.extensions.service_control_policies']
 
 package_data = \
@@ -15,7 +16,7 @@ package_data = \
 install_requires = \
 ['PyYAML>=5.3.1,<6.0.0',
  'awacs>=1.0.1,<2.0.0',
- 'better-boto==0.36.0',
+ 'better-boto==0.38.0',
  'boto3>=1.16.4,<2.0.0',
  'click>=7.1.2,<8.0.0',
  'progress>=1.5,<2.0',

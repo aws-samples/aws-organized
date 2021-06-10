@@ -1,6 +1,7 @@
 # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import glob
+import collections
 from datetime import datetime
 import json
 import yaml
@@ -14,7 +15,10 @@ SERVICE_CONTROL_POLICY = "SERVICE_CONTROL_POLICY"
 ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
 ACCOUNT = "ACCOUNT"
 SEP = os.path.sep
-EXTENSION = "service_control_policies"
+EXTENSION = "delegated_administrators"
+
+
+ServicePrincipal = "ServicePrincipal"
 
 
 def save_all_policies_from_org(root_id: str, organizations) -> None:
@@ -149,77 +153,49 @@ def save_targets_for_policy(root_id, organizations) -> None:
     progress.finish()
 
 
-def remove_any_existing_policy_records(root_id: str) -> None:
+def remove_any_existing_records(root_id: str) -> None:
     policies = glob.glob(
-        f"environment/{root_id}/**/_service_control_policies.yaml", recursive=True
+        f"environment/{root_id}/**/_delegated_administrators.yaml", recursive=True
     )
     for policy in policies:
         os.remove(policy)
 
 
-def import_organization_policies(role_arn, root_id) -> None:
+def import_organization(role_arn, root_id) -> None:
+    remove_any_existing_records(root_id)
     with betterboto_client.CrossAccountClientContextManager(
         "organizations", role_arn, f"organizations"
     ) as organizations:
-        progress = bar.IncrementalBar("Importing SCPs", max=4)
-        progress.next()
-        remove_any_existing_policy_records(root_id)
-        progress.next()
-        save_all_policies_from_org(root_id, organizations)
-        progress.next()
-        save_targets_for_policy(root_id, organizations)
-        progress.next()
-        progress.finish()
+        delegated_administrators = (
+            organizations.list_delegated_administrators_single_page().get(
+                "DelegatedAdministrators", []
+            )
+        )
+        progress = bar.IncrementalBar(
+            "Importing Delegated Administrators", max=len(delegated_administrators)
+        )
+        for delegated_administrator in delegated_administrators:
+            progress.next()
+            account_id = delegated_administrator.get("Id")
+            account_name = delegated_administrator.get("Name")
+            delegated_services = (
+                organizations.list_delegated_services_for_account_single_page(
+                    AccountId=account_id
+                ).get("DelegatedServices")
+            )
 
-
-def check_policies(root_id: str, organizations) -> None:
-    scps_path = (
-        f"environment/{root_id}/_policies/service_control_policies/*/policy.json"
-    )
-    for policy_content_path in glob.glob(scps_path):
-        policy_file_path = policy_content_path.replace("policy.json", "_meta.yaml")
-        if os.path.exists(policy_file_path):
-            local_policy = yaml.safe_load(open(policy_file_path, "r").read())
-            if local_policy.get("AwsManaged"):
-                continue
-            p = organizations.describe_policy(PolicyId=local_policy.get("Id")).get(
-                "Policy"
+            account_file = glob.glob(
+                f"environment/{root_id}/**/{account_name}/_meta.yaml",
+                recursive=True,
             )
-            remote_policy = p.get("PolicySummary")
-            if local_policy.get("Name") != remote_policy.get(
-                "Name"
-            ) or local_policy.get("Description") != remote_policy.get("Description"):
-                write_migration(
-                    EXTENSION,
-                    root_id,
-                    migrations.POLICY_DETAILS_UPDATE,
-                    dict(
-                        id=local_policy.get("Id"),
-                        name=local_policy.get("Name"),
-                        description=local_policy.get("Description"),
-                    ),
-                )
-            local_policy_content = json.dumps(
-                json.loads(open(policy_content_path, "r").read())
+            assert (
+                len(account_file) == 1
+            ), "found more or less than 1 account_meta file when searching by name"
+            delegated_administrators_file = account_file[0].replace(
+                "_meta", "_delegated_administrators"
             )
-            if local_policy_content != p.get("Content"):
-                write_migration(
-                    EXTENSION,
-                    root_id,
-                    migrations.POLICY_CONTENT_UPDATE,
-                    dict(id=local_policy.get("Id"), content=local_policy_content),
-                )
-        else:
-            local_policy_content = json.dumps(
-                json.loads(open(policy_content_path, "r").read())
-            )
-            write_migration(
-                EXTENSION,
-                root_id,
-                migrations.POLICY_CREATE,
-                dict(
-                    name=policy_file_path.split(SEP)[-2], content=local_policy_content
-                ),
+            open(delegated_administrators_file, "w").write(
+                yaml.safe_dump(delegated_services)
             )
 
 
@@ -269,17 +245,79 @@ def check_attachment(root_id: str, policy_file_path: str, organizations) -> None
             )
 
 
-def check_attachments(root_id: str, organizations) -> None:
-    policies = glob.glob(
-        f"environment/{root_id}/**/_service_control_policies.yaml", recursive=True
+def check_existing(root_id: str, organizations) -> None:
+    administrators = glob.glob(
+        f"environment/{root_id}/**/_delegated_administrators.yaml", recursive=True
     )
-    for policy_file_path in policies:
-        check_attachment(root_id, policy_file_path, organizations)
+    for administrator in administrators:
+        local_delegated = yaml.safe_load(open(administrator, "r").read())
+        account_details = yaml.safe_load(
+            open(
+                administrator.replace("_delegated_administrators", "_meta"), "r"
+            ).read()
+        )
+        try:
+            response = organizations.list_delegated_services_for_account_single_page(
+                AccountId=account_details.get("Id")
+            )
+            remote_delegated_as_dict = dict()
+            for delegated_service in response.get("DelegatedServices", []):
+                remote_delegated_as_dict[
+                    delegated_service.get(ServicePrincipal)
+                ] = delegated_service
+
+            local_delegated_as_dict = dict()
+            for administrator_detail in local_delegated:
+                local_delegated_as_dict[
+                    administrator_detail.get(ServicePrincipal)
+                ] = administrator_detail
+                if (
+                    remote_delegated_as_dict.get(
+                        administrator_detail.get(ServicePrincipal)
+                    )
+                    is None
+                ):
+                    write_migration(
+                        EXTENSION,
+                        root_id,
+                        migrations.REGISTER_DELEGATED_ADMINISTRATOR,
+                        dict(
+                            account_id=account_details.get("Id"),
+                            service_principal=administrator_detail.get(
+                                ServicePrincipal
+                            ),
+                        ),
+                    )
+            for delegated_service in response.get("DelegatedServices", []):
+                if (
+                    local_delegated_as_dict.get(delegated_service.get(ServicePrincipal))
+                    is None
+                ):
+                    write_migration(
+                        EXTENSION,
+                        root_id,
+                        migrations.DEREGISTER_DELEGATED_ADMINISTRATOR,
+                        dict(
+                            account_id=account_details.get("Id"),
+                            service_principal=delegated_service.get(ServicePrincipal),
+                        ),
+                    )
+
+        except organizations.exceptions.AccountNotRegisteredException:
+            for administrator_detail in local_delegated:
+                write_migration(
+                    EXTENSION,
+                    root_id,
+                    migrations.REGISTER_DELEGATED_ADMINISTRATOR,
+                    dict(
+                        account_id=account_details.get("Id"),
+                        service_principal=administrator_detail.get(ServicePrincipal),
+                    ),
+                )
 
 
 def make_migrations(role_arn: str, root_id: str) -> None:
     with betterboto_client.CrossAccountClientContextManager(
         "organizations", role_arn, f"organizations"
     ) as organizations:
-        check_policies(root_id, organizations)
-        check_attachments(root_id, organizations)
+        check_existing(root_id, organizations)
