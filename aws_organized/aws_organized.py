@@ -13,6 +13,7 @@ import logging
 import sys
 from aws_organized import migrations
 from aws_organized.extensions.service_control_policies import service_control_policies
+from aws_organized.extensions.delegated_administrators import delegated_administrators
 from datetime import datetime
 from progress import bar
 
@@ -469,6 +470,12 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
                     migration_function = (
                         service_control_policies.migrations.get_function(migration_type)
                     )
+                elif migration_extension == delegated_administrators.EXTENSION:
+                    migration_function = (
+                        delegated_administrators.migrations.get_function(migration_type)
+                    )
+                else:
+                    raise Exception(f"Unknown extension: {migration_extension}")
 
                 try:
 

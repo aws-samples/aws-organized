@@ -5,6 +5,7 @@ import click
 from aws_organized import helpers
 from aws_organized import aws_organized
 from aws_organized.extensions.service_control_policies import service_control_policies
+from aws_organized.extensions.delegated_administrators import delegated_administrators
 from betterboto import client as betterboto_client
 
 
@@ -41,6 +42,7 @@ def import_organization(role_arn):
         click.echo(f"Processing root_id: {root_id}")
         aws_organized.import_organization(role_arn, root_id)
         service_control_policies.import_organization_policies(role_arn, root_id)
+        delegated_administrators.import_organization(role_arn, root_id)
 
 
 @cli.command()
@@ -87,6 +89,7 @@ def make_migrations(role_arn):
         click.echo(f"Processing root_id: {root_id}")
         aws_organized.make_migrations(role_arn, root_id)
         service_control_policies.make_migrations(role_arn, root_id)
+        delegated_administrators.make_migrations(role_arn, root_id)
 
 
 @cli.command()
