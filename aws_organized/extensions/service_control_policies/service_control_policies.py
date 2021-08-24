@@ -122,12 +122,19 @@ def save_targets_for_policy(root_id, organizations) -> None:
                 )
             else:
                 raise Exception(f"Not handled type: {target.get('Type')}")
-            if attached:
+
+            really_attached = list()
+            for attach in attached:
+                a = yaml.safe_load(open(attach, 'r').read())
+                if a.get("Id") == target.get("TargetId"):
+                    really_attached.append(attach)
+
+            if really_attached:
                 assert (
-                    len(attached) == 1
-                ), f"mapping to attached entity found {len(attached)} entities for {target}"
-                attached = attached[0]
-                output_path = attached.replace(
+                    len(really_attached) == 1
+                ), f"mapping to attached entity found {len(really_attached)} entities for {target}"
+                really_attached = really_attached[0]
+                output_path = really_attached.replace(
                     "_meta.yaml", "_service_control_policies.yaml"
                 )
                 output = dict(Attached=list(), Inherited=list())
