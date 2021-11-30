@@ -1,10 +1,13 @@
 [[package]]
 name = "awacs"
-version = "1.0.1"
+version = "2.0.2"
 description = "AWS Access Policy Language creation library"
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
+python-versions = ">=3.6.2"
+
+[package.dependencies]
+typing-extensions = {version = ">=3.7.4.3", markers = "python_version < \"3.8\""}
 
 [[package]]
 name = "better-boto"
@@ -121,17 +124,26 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "troposphere"
-version = "2.6.3"
+version = "3.1.0"
 description = "AWS CloudFormation creation library"
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+python-versions = ">=3.6.2"
 
 [package.dependencies]
-cfn_flip = ">=1.0.2"
+cfn-flip = ">=1.0.2"
+typing-extensions = {version = ">=3.7.4.3", markers = "python_version < \"3.8\""}
 
 [package.extras]
-policy = ["awacs (>=0.8)"]
+policy = ["awacs (>=2.0.0)"]
+
+[[package]]
+name = "typing-extensions"
+version = "4.0.0"
+description = "Backported and Experimental Type Hints for Python 3.6+"
+category = "main"
+optional = false
+python-versions = ">=3.6"
 
 [[package]]
 name = "urllib3"
@@ -149,11 +161,12 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4"
-content-hash = "dc4e5ebf0b4fbb60b34f7abffd9fa45a14cd26a1442227a687c61463e7f023d2"
+content-hash = "e90713dbf9ae98433ac61f00c7d7b31884d667e1a2cd78610d7daa441d332701"
 
 [metadata.files]
 awacs = [
-    {file = "awacs-1.0.1.tar.gz", hash = "sha256:1c678fcd89ca6d7a2bba17374aae3720271f8b74d92390aff0612b65b3c8b667"},
+    {file = "awacs-2.0.2-py3-none-any.whl", hash = "sha256:91b4e9039f6c84876b33fc8383e92e8cda4635792d238b70f14735a4ceb558fe"},
+    {file = "awacs-2.0.2.tar.gz", hash = "sha256:018138c10f82e11734aee7f9e7fff5dbfe1245ddaf15d5927f60f3b16e01ad7e"},
 ]
 better-boto = [
     {file = "better-boto-0.38.0.tar.gz", hash = "sha256:341b0c18db3dd110c2d7fbffb331fe4ea23f1160251c9f062ba9b89fbf7ea91b"},
@@ -209,7 +222,12 @@ six = [
     {file = "six-1.15.0.tar.gz", hash = "sha256:30639c035cdb23534cd4aa2dd52c3bf48f06e5f4a941509c8bafd8ce11080259"},
 ]
 troposphere = [
-    {file = "troposphere-2.6.3.tar.gz", hash = "sha256:0f1607910ea545906131c820ef629a82a57f087cb99ac573bf9dfcdc1e64e11a"},
+    {file = "troposphere-3.1.0-py3-none-any.whl", hash = "sha256:ff9462897b7b59a4b7e7ea69d4572aa7afd8256e658daac6c4f0114c3c57e064"},
+    {file = "troposphere-3.1.0.tar.gz", hash = "sha256:45506ac737396d940c93eee68694a0f5cfeaba5c1fba2cd9d39335e713d0bacf"},
+]
+typing-extensions = [
+    {file = "typing_extensions-4.0.0-py3-none-any.whl", hash = "sha256:829704698b22e13ec9eaf959122315eabb370b0884400e9818334d8b677023d9"},
+    {file = "typing_extensions-4.0.0.tar.gz", hash = "sha256:2cdf80e4e04866a9b3689a51869016d36db0814d84b8d8a568d22781d45d27ed"},
 ]
 urllib3 = [
     {file = "urllib3-1.25.11-py2.py3-none-any.whl", hash = "sha256:f5321fbe4bf3fefa0efd0bfe7fb14e90909eb62a48ccda331726b4319897dd5e"},
