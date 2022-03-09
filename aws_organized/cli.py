@@ -274,6 +274,15 @@ def provision_codepipeline_stack(
         migrate_role_arn,
     )
 
+@cli.command()
+def prune_metadata():
+    for root_id in os.listdir("environment"):
+        if root_id in ["migrations", "Policies", "policies_migration"]:
+            continue
+        click.echo(f"Processing root_id: {root_id}")
+        aws_organized.prune_metadata()
+        service_control_policies.prune_metadata(root_id)
+        delegated_administrators.prune_metadata(root_id)
 
 if __name__ == "__main__":
     cli()

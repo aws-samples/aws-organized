@@ -290,3 +290,33 @@ def make_migrations(role_arn: str, root_id: str) -> None:
     ) as organizations:
         check_policies(root_id, organizations)
         check_attachments(root_id, organizations)
+
+
+def prune_metadata(root_id: str) -> None:
+    policies = glob.glob(
+        f"environment/{root_id}/_policies/**/_meta.yaml", recursive=True
+    )
+    if len(policies) > 0:
+        progress = bar.IncrementalBar(
+            "Pruning SCP Policies metadata", max=len(policies)
+        )
+        for policy in policies:
+            progress.next()
+            os.remove(policy)
+        progress.finish()
+
+    policies = glob.glob(
+        f"environment/{root_id}/**/_service_control_policies.yaml", recursive=True
+    )
+    if len(policies) > 0:
+        progress = bar.IncrementalBar(
+            "Pruning SCP Attachment metadata", max=len(policies)
+        )
+        for policy in policies:
+            progress.next()
+            p = yaml.safe_load(open(policy, 'r').read())
+            new_attachment = dict(Attached=list(), Inherited=list())
+            for a in p.get("Attached", []):
+                new_attachment["Attached"].append(dict(Name=a["Name"]))
+            open(policy, 'w').write(yaml.safe_dump(new_attachment))
+        progress.finish()

@@ -503,3 +503,20 @@ def migrate(root_id: str, role_arn: str, ssm_parameter_prefix: str) -> None:
                     ],
                 )
         progress.finish()
+
+
+def prune_metadata() -> None:
+    accounts = get_accounts_folders()
+    progress = bar.IncrementalBar(
+        "Pruning accounts and OU metadata", max=2
+    )
+    progress.next()
+    for account in accounts:
+        if os.path.exists(f"{account}/_meta.yaml"):
+            os.remove(f"{account}/_meta.yaml")
+    progress.next()
+    ous = get_organizational_units_folders()
+    for ou in ous:
+        if os.path.exists(f"{ou}/_meta.yaml"):
+            os.remove(f"{ou}/_meta.yaml")
+    progress.finish()

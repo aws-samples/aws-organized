@@ -321,3 +321,21 @@ def make_migrations(role_arn: str, root_id: str) -> None:
         "organizations", role_arn, f"organizations"
     ) as organizations:
         check_existing(root_id, organizations)
+
+
+
+def prune_metadata(root_id: str) -> None:
+    policies = glob.glob(
+        f"environment/{root_id}/**/_delegated_administrators.yaml", recursive=True
+    )
+    progress = bar.IncrementalBar(
+        "Pruning Delegated Administrator metadata", max=len(policies)
+    )
+    for policy in policies:
+        progress.next()
+        p = yaml.safe_load(open(policy, 'r').read())
+        new_delegated_administrators = list()
+        for a in p:
+            new_delegated_administrators.append(dict(ServicePrincipal=a.get("ServicePrincipal")))
+        open(policy, 'w').write(yaml.safe_dump(new_delegated_administrators))
+    progress.finish()
